@@ -1,4 +1,5 @@
 import { arrayMove } from "@dnd-kit/sortable";
+import { isSameDay } from "date-fns";
 import type { Task, FlattenedTask } from "./types";
 
 function flatten(
@@ -162,4 +163,21 @@ export function getDragDepthIds(
   }
 
   return ids;
+}
+
+export function getTasksForToday(tasks: Task[], today: Date): Task[] {
+  const results: Task[] = [];
+  function collect(items: Task[]) {
+    for (const task of items) {
+      if (
+        (task.dueDate && isSameDay(new Date(task.dueDate), today)) ||
+        (task.scheduledDate && isSameDay(new Date(task.scheduledDate), today))
+      ) {
+        results.push({ ...task, children: [] });
+      }
+      collect(task.children);
+    }
+  }
+  collect(tasks);
+  return results;
 }

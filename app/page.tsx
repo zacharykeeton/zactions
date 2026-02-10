@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ListTodo, Plus } from "lucide-react";
+import { ListTodo, Plus, CalendarCheck } from "lucide-react";
 import { useTaskStore } from "@/hooks/use-task-store";
 import { TaskTree } from "@/components/task-tree";
+import { TodayList } from "@/components/today-list";
 import { TaskForm } from "@/components/task-form";
 import {
   Dialog,
@@ -12,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Task, Priority, RecurrencePattern } from "@/lib/types";
 
 export default function Home() {
@@ -85,30 +87,54 @@ export default function Home() {
           </Button>
         </header>
 
-        {tasks.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed py-16">
-            <ListTodo className="h-12 w-12 text-muted-foreground" />
-            <div className="text-center">
-              <p className="text-lg font-medium">No tasks yet</p>
-              <p className="text-sm text-muted-foreground">
-                Create your first task to get started
-              </p>
-            </div>
-            <Button variant="outline" onClick={handleAddRootTask}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Task
-            </Button>
-          </div>
-        ) : (
-          <TaskTree
-            tasks={tasks}
-            onReorder={reorderTasks}
-            onToggle={toggleTask}
-            onDelete={deleteTask}
-            onEdit={handleEdit}
-            onAddSubtask={handleAddSubtask}
-          />
-        )}
+        <Tabs defaultValue="all" className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="all">
+              <ListTodo className="mr-2 h-4 w-4" />
+              All Tasks
+            </TabsTrigger>
+            <TabsTrigger value="today">
+              <CalendarCheck className="mr-2 h-4 w-4" />
+              Today
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="all">
+            {tasks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed py-16">
+                <ListTodo className="h-12 w-12 text-muted-foreground" />
+                <div className="text-center">
+                  <p className="text-lg font-medium">No tasks yet</p>
+                  <p className="text-sm text-muted-foreground">
+                    Create your first task to get started
+                  </p>
+                </div>
+                <Button variant="outline" onClick={handleAddRootTask}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Task
+                </Button>
+              </div>
+            ) : (
+              <TaskTree
+                tasks={tasks}
+                onReorder={reorderTasks}
+                onToggle={toggleTask}
+                onDelete={deleteTask}
+                onEdit={handleEdit}
+                onAddSubtask={handleAddSubtask}
+              />
+            )}
+          </TabsContent>
+
+          <TabsContent value="today">
+            <TodayList
+              tasks={tasks}
+              onToggle={toggleTask}
+              onDelete={deleteTask}
+              onEdit={handleEdit}
+            />
+          </TabsContent>
+        </Tabs>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent>
