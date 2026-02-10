@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import type { Task, Priority } from "@/lib/types";
+import type { Task, Priority, RecurrencePattern } from "@/lib/types";
 
 export default function Home() {
   const {
@@ -51,6 +51,7 @@ export default function Home() {
     dueDate: string | null;
     scheduledDate: string | null;
     parentId: string | null;
+    recurrence?: RecurrencePattern;
   }) {
     if (editingTask) {
       updateTask(editingTask.id, {
@@ -58,6 +59,7 @@ export default function Home() {
         priority: data.priority,
         dueDate: data.dueDate,
         scheduledDate: data.scheduledDate,
+        recurrence: data.recurrence,
       });
     } else {
       addTask(
@@ -65,7 +67,8 @@ export default function Home() {
         data.priority,
         data.dueDate,
         data.scheduledDate,
-        data.parentId
+        data.parentId,
+        data.recurrence
       );
     }
     setDialogOpen(false);

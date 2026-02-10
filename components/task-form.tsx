@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
-import type { Task, Priority } from "@/lib/types";
+import { CalendarIcon, Repeat } from "lucide-react";
+import type { Task, Priority, RecurrenceInterval, DayOfWeek, RecurrencePattern } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface TaskFormProps {
   initialData?: Task;
@@ -31,6 +32,7 @@ interface TaskFormProps {
     dueDate: string | null;
     scheduledDate: string | null;
     parentId: string | null;
+    recurrence?: RecurrencePattern;
   }) => void;
   onCancel: () => void;
 }
@@ -53,16 +55,45 @@ export function TaskForm({
   );
   const [dueDateOpen, setDueDateOpen] = useState(false);
   const [scheduledDateOpen, setScheduledDateOpen] = useState(false);
+  const [isRecurring, setIsRecurring] = useState(!!initialData?.recurrence);
+  const [recurrenceInterval, setRecurrenceInterval] = useState<RecurrenceInterval>(
+    initialData?.recurrence?.interval ?? "weekly"
+  );
+  const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>(
+    initialData?.recurrence?.daysOfWeek ?? []
+  );
+
+  const isSubtask = parentId !== null;
+  const canSubmit = title.trim() && !(isRecurring && !dueDate);
+
+  function toggleDay(day: DayOfWeek) {
+    setSelectedDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort()
+    );
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!canSubmit) return;
+
+    const recurrence: RecurrencePattern | undefined =
+      isRecurring && !isSubtask
+        ? {
+            interval: recurrenceInterval,
+            daysOfWeek:
+              recurrenceInterval === "weekly" && selectedDays.length > 0
+                ? selectedDays
+                : undefined,
+          }
+        : undefined;
+
     onSubmit({
       title: title.trim(),
       priority,
       dueDate: dueDate ? dueDate.toISOString() : null,
       scheduledDate: scheduledDate ? scheduledDate.toISOString() : null,
       parentId,
+      recurrence,
     });
   }
 
@@ -133,6 +164,85 @@ export function TaskForm({
         </div>
       </div>
 
+      {!isSubtask && (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="recurring"
+              checked={isRecurring}
+              onCheckedChange={(checked) => {
+                setIsRecurring(!!checked);
+                if (!checked) setSelectedDays([]);
+              }}
+            />
+            <Label htmlFor="recurring" className="flex items-center gap-1.5">
+              <Repeat className="h-4 w-4" />
+              Recurring task
+            </Label>
+          </div>
+
+          {isRecurring && (
+            <div className="flex flex-col gap-3 pl-6">
+              <Select
+                value={recurrenceInterval}
+                onValueChange={(v) => {
+                  setRecurrenceInterval(v as RecurrenceInterval);
+                  if (v !== "weekly") setSelectedDays([]);
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {recurrenceInterval === "weekly" && (
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-sm text-muted-foreground">
+                    Repeat on
+                  </Label>
+                  <div className="flex gap-1">
+                    {(
+                      [
+                        [0, "S"],
+                        [1, "M"],
+                        [2, "T"],
+                        [3, "W"],
+                        [4, "T"],
+                        [5, "F"],
+                        [6, "S"],
+                      ] as [DayOfWeek, string][]
+                    ).map(([value, label]) => (
+                      <Button
+                        key={value}
+                        type="button"
+                        variant={selectedDays.includes(value) ? "default" : "outline"}
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => toggleDay(value)}
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {!dueDate && (
+                <p className="text-sm text-amber-600 dark:text-amber-400">
+                  A due date is required for recurring tasks
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-col gap-2">
         <Label>Scheduled Date</Label>
         <div className="flex gap-2">
@@ -177,7 +287,7 @@ export function TaskForm({
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" disabled={!title.trim()}>
+        <Button type="submit" disabled={!canSubmit}>
           {initialData ? "Save" : "Add Task"}
         </Button>
       </div>

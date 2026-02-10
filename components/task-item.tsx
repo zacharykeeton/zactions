@@ -11,7 +11,9 @@ import {
   Trash2,
   Calendar,
   Clock,
+  Repeat,
 } from "lucide-react";
+import { formatRecurrencePattern } from "@/lib/recurrence-utils";
 import type { FlattenedTask, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -102,6 +104,26 @@ export function TaskItem({
       </span>
 
       <div className="flex shrink-0 items-center gap-1.5">
+        {task.recurrence && (
+          <Badge
+            variant="outline"
+            className="flex items-center gap-1 text-xs"
+            title={formatRecurrencePattern(task.recurrence)}
+          >
+            <Repeat className="h-3 w-3" />
+            {formatRecurrencePattern(task.recurrence)}
+          </Badge>
+        )}
+
+        {(task.completionHistory?.length ?? 0) > 0 && (
+          <span
+            className="text-xs text-muted-foreground"
+            title={`Completed ${task.completionHistory!.length} time${task.completionHistory!.length === 1 ? "" : "s"}`}
+          >
+            {task.completionHistory!.length}x
+          </span>
+        )}
+
         <Badge
           variant="secondary"
           className={cn("text-xs", priorityColors[task.priority])}
@@ -129,15 +151,17 @@ export function TaskItem({
         )}
 
         <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => onAddSubtask(task.id)}
-            title="Add subtask"
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </Button>
+          {!task.recurrence && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => onAddSubtask(task.id)}
+              title="Add subtask"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"

@@ -2,33 +2,35 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
-import type { Task, Priority } from "@/lib/types";
+import type { Task, Priority, RecurrencePattern } from "@/lib/types";
 import { removeItem, findItemDeep } from "@/lib/tree-utils";
+import { getNextDueDate } from "@/lib/recurrence-utils";
 import { LOCAL_STORAGE_KEY } from "@/lib/constants";
 
-function loadTasks(): Task[] {
-  if (typeof window === "undefined") return [];
-  const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-  if (!stored) return [];
-  try {
-    return JSON.parse(stored);
-  } catch {
-    return [];
-  }
-}
-
 export function useTaskStore() {
-  const [tasks, setTasks] = useState<Task[]>(loadTasks);
-  const isInitialMount = useRef(true);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const isLoadingFromStorage = useRef(true);
 
-  // Persist on every change after initial mount
+  // Persist changes — declared before the load effect so it runs first
+  // and correctly skips while isLoadingFromStorage is true
   useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
+    if (isLoadingFromStorage.current) return;
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(tasks));
   }, [tasks]);
+
+  // Load from localStorage after hydration to avoid SSR mismatch.
+  // The lazy initializer pattern causes hydration errors because the server
+  // returns [] while the client reads stored tasks, producing different DOM.
+  useEffect(() => {
+    const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (stored) {
+      try {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setTasks(JSON.parse(stored));
+      } catch { /* corrupt data, start fresh */ }
+    }
+    isLoadingFromStorage.current = false;
+  }, []);
 
   const addTask = useCallback(
     (
@@ -36,8 +38,14 @@ export function useTaskStore() {
       priority: Priority,
       dueDate: string | null,
       scheduledDate: string | null,
-      parentId: string | null
+      parentId: string | null,
+      recurrence?: RecurrencePattern
     ) => {
+      // Recurring tasks must have a due date and cannot be subtasks
+      if (recurrence && (!dueDate || parentId !== null)) {
+        recurrence = undefined;
+      }
+
       const newTask: Task = {
         id: uuidv4(),
         title,
@@ -48,6 +56,8 @@ export function useTaskStore() {
         completedDate: null,
         createdDate: new Date().toISOString(),
         children: [],
+        recurrence,
+        completionHistory: recurrence ? [] : undefined,
       };
 
       if (parentId === null) {
@@ -76,7 +86,18 @@ export function useTaskStore() {
       setTasks((prev) => {
         const update = (items: Task[]): Task[] =>
           items.map((item) => {
-            if (item.id === id) return { ...item, ...updates };
+            if (item.id === id) {
+              const updated = { ...item, ...updates };
+              // Initialize completionHistory when adding recurrence
+              if (updated.recurrence && !updated.completionHistory) {
+                updated.completionHistory = [];
+              }
+              // Clean up completionHistory when removing recurrence
+              if (!updated.recurrence) {
+                delete updated.completionHistory;
+              }
+              return updated;
+            }
             if (item.children.length > 0)
               return { ...item, children: update(item.children) };
             return item;
@@ -96,6 +117,30 @@ export function useTaskStore() {
       const task = findItemDeep(prev, id);
       if (!task) return prev;
       const newCompleted = !task.completed;
+
+      // Recurring task: reset in place with advanced due date
+      if (newCompleted && task.recurrence && task.dueDate) {
+        const nextDue = getNextDueDate(task.dueDate, task.recurrence);
+        const now = new Date().toISOString();
+        const update = (items: Task[]): Task[] =>
+          items.map((item) => {
+            if (item.id === id) {
+              return {
+                ...item,
+                completed: false,
+                dueDate: nextDue,
+                completedDate: null,
+                completionHistory: [...(item.completionHistory || []), now],
+              };
+            }
+            if (item.children.length > 0)
+              return { ...item, children: update(item.children) };
+            return item;
+          });
+        return update(prev);
+      }
+
+      // Normal toggle
       const update = (items: Task[]): Task[] =>
         items.map((item) => {
           if (item.id === id) {

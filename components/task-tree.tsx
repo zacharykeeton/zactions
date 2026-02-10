@@ -28,6 +28,7 @@ import {
   buildTree,
   getProjection,
   getChildCount,
+  findItemDeep,
 } from "@/lib/tree-utils";
 import { INDENTATION_WIDTH } from "@/lib/constants";
 import { TaskItem, TaskItemOverlay } from "./task-item";
@@ -111,6 +112,12 @@ export function TaskTree({
     if (!over || active.id === over.id || !projected) return;
 
     const { depth, parentId } = projected;
+
+    // Prevent nesting under a recurring task
+    if (parentId) {
+      const parent = findItemDeep(tasks, parentId);
+      if (parent?.recurrence) return;
+    }
     const clonedItems = flattenTree(tasks);
 
     const activeIndex = clonedItems.findIndex(({ id }) => id === active.id);
