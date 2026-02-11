@@ -1,6 +1,6 @@
 "use client";
 
-import { type CSSProperties, forwardRef, useCallback, useRef } from "react";
+import { type CSSProperties, forwardRef, useCallback, useEffect, useRef } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { format, isPast, isToday } from "date-fns";
@@ -65,6 +65,11 @@ export function TaskItem({
   };
 
   const checkboxRef = useRef<HTMLButtonElement>(null);
+  const completionSound = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    completionSound.current = new Audio("/sounds/liecio-bonus-points-190035.mp3");
+  }, []);
 
   const handleToggle = useCallback(() => {
     if (!task.completed && checkboxRef.current) {
@@ -79,6 +84,10 @@ export function TaskItem({
         gravity: 1.2,
         scalar: 0.8,
       });
+      if (completionSound.current) {
+        completionSound.current.currentTime = 0;
+        completionSound.current.play();
+      }
     }
     onToggle(task.id);
   }, [task.completed, task.id, onToggle]);

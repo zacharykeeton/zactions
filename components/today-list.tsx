@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useEffect } from "react";
 import { startOfDay } from "date-fns";
 import { format, isPast, isToday } from "date-fns";
 import {
@@ -37,6 +37,11 @@ interface TodayListProps {
 
 export function TodayList({ tasks, onToggle, onDelete, onEdit }: TodayListProps) {
   const checkboxRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const completionSound = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    completionSound.current = new Audio("/sounds/liecio-bonus-points-190035.mp3");
+  }, []);
 
   const todayTasks = useMemo(() => {
     const today = startOfDay(new Date());
@@ -117,6 +122,10 @@ export function TodayList({ tasks, onToggle, onDelete, onEdit }: TodayListProps)
                       gravity: 1.2,
                       scalar: 0.8,
                     });
+                  }
+                  if (completionSound.current) {
+                    completionSound.current.currentTime = 0;
+                    completionSound.current.play();
                   }
                 }
                 onToggle(task.id);
