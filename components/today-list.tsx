@@ -19,6 +19,7 @@ import { getTasksForToday } from "@/lib/tree-utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 
 const priorityColors: Record<string, string> = {
   low: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",
@@ -42,6 +43,10 @@ export function TodayList({ tasks, onToggle, onDelete, onEdit }: TodayListProps)
     return getTasksForToday(tasks, today);
   }, [tasks]);
 
+  const completedCount = todayTasks.filter((t) => t.completed).length;
+  const totalCount = todayTasks.length;
+  const completionPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
   if (todayTasks.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed py-16">
@@ -58,6 +63,23 @@ export function TodayList({ tasks, onToggle, onDelete, onEdit }: TodayListProps)
 
   return (
     <div className="flex flex-col">
+      <div className="mb-4 rounded-lg border bg-card p-4">
+        <div className="mb-2 flex items-baseline justify-between">
+          <span className="text-sm font-medium text-muted-foreground">
+            Today&apos;s Progress
+          </span>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-2xl font-bold tracking-tight">
+              {completionPercent}%
+            </span>
+            <span className="text-xs text-muted-foreground">
+              ({completedCount}/{totalCount})
+            </span>
+          </div>
+        </div>
+        <Progress value={completionPercent} className="h-2" />
+      </div>
+
       {todayTasks.map((task) => {
         const isOverdue =
           task.dueDate &&
