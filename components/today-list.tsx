@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useRef, useMemo } from "react";
 import { startOfDay } from "date-fns";
 import { format, isPast, isToday } from "date-fns";
 import {
@@ -11,6 +11,7 @@ import {
   Clock,
   Repeat,
 } from "lucide-react";
+import confetti from "canvas-confetti";
 import { formatRecurrencePattern } from "@/lib/recurrence-utils";
 import type { Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,8 @@ interface TodayListProps {
 }
 
 export function TodayList({ tasks, onToggle, onDelete, onEdit }: TodayListProps) {
+  const checkboxRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+
   const todayTasks = useMemo(() => {
     const today = startOfDay(new Date());
     return getTasksForToday(tasks, today);
@@ -71,8 +74,31 @@ export function TodayList({ tasks, onToggle, onDelete, onEdit }: TodayListProps)
             )}
           >
             <Checkbox
+              ref={(el) => {
+                if (el) checkboxRefs.current.set(task.id, el);
+                else checkboxRefs.current.delete(task.id);
+              }}
               checked={task.completed}
-              onCheckedChange={() => onToggle(task.id)}
+              onCheckedChange={() => {
+                if (!task.completed) {
+                  const el = checkboxRefs.current.get(task.id);
+                  if (el) {
+                    const rect = el.getBoundingClientRect();
+                    confetti({
+                      particleCount: 50,
+                      spread: 60,
+                      origin: {
+                        x: (rect.left + rect.width / 2) / window.innerWidth,
+                        y: (rect.top + rect.height / 2) / window.innerHeight,
+                      },
+                      ticks: 100,
+                      gravity: 1.2,
+                      scalar: 0.8,
+                    });
+                  }
+                }
+                onToggle(task.id);
+              }}
               className="shrink-0"
             />
 

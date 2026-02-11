@@ -1,6 +1,6 @@
 "use client";
 
-import { type CSSProperties, forwardRef } from "react";
+import { type CSSProperties, forwardRef, useCallback, useRef } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { format, isPast, isToday } from "date-fns";
@@ -13,6 +13,7 @@ import {
   Clock,
   Repeat,
 } from "lucide-react";
+import confetti from "canvas-confetti";
 import { formatRecurrencePattern } from "@/lib/recurrence-utils";
 import type { FlattenedTask, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,25 @@ export function TaskItem({
     paddingLeft: `${depth * indentationWidth}px`,
   };
 
+  const checkboxRef = useRef<HTMLButtonElement>(null);
+
+  const handleToggle = useCallback(() => {
+    if (!task.completed && checkboxRef.current) {
+      const rect = checkboxRef.current.getBoundingClientRect();
+      const x = (rect.left + rect.width / 2) / window.innerWidth;
+      const y = (rect.top + rect.height / 2) / window.innerHeight;
+      confetti({
+        particleCount: 50,
+        spread: 60,
+        origin: { x, y },
+        ticks: 100,
+        gravity: 1.2,
+        scalar: 0.8,
+      });
+    }
+    onToggle(task.id);
+  }, [task.completed, task.id, onToggle]);
+
   const isOverdue =
     task.dueDate &&
     !task.completed &&
@@ -89,8 +109,9 @@ export function TaskItem({
       </button>
 
       <Checkbox
+        ref={checkboxRef}
         checked={task.completed}
-        onCheckedChange={() => onToggle(task.id)}
+        onCheckedChange={handleToggle}
         className="shrink-0"
       />
 
