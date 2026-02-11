@@ -1,35 +1,13 @@
 "use client";
 
-import { useRef, useMemo, useEffect } from "react";
+import { useMemo } from "react";
 import { startOfDay } from "date-fns";
-import { format, isPast, isToday } from "date-fns";
-import {
-  CalendarCheck,
-  Pencil,
-  Trash2,
-  Calendar,
-  Clock,
-  Repeat,
-  Play,
-  Pause,
-} from "lucide-react";
-import confetti from "canvas-confetti";
-import { formatRecurrencePattern } from "@/lib/recurrence-utils";
+import { CalendarCheck } from "lucide-react";
 import type { Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { formatDuration } from "@/lib/time-utils";
 import { getTasksForToday } from "@/lib/tree-utils";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-
-const priorityColors: Record<string, string> = {
-  low: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",
-  medium:
-    "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400",
-  high: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400",
-};
+import { TaskRowContent } from "@/components/task-row-content";
 
 interface TodayListProps {
   tasks: Task[];
@@ -43,13 +21,6 @@ interface TodayListProps {
 }
 
 export function TodayList({ tasks, onToggle, onDelete, onEdit, activeTimerId, currentElapsedMs, onStartTimer, onPauseTimer }: TodayListProps) {
-  const checkboxRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
-  const completionSound = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    completionSound.current = new Audio("/sounds/liecio-bonus-points-190035.mp3");
-  }, []);
-
   const todayTasks = useMemo(() => {
     const today = startOfDay(new Date());
     return getTasksForToday(tasks, today);
@@ -93,11 +64,6 @@ export function TodayList({ tasks, onToggle, onDelete, onEdit, activeTimerId, cu
       </div>
 
       {todayTasks.map((task) => {
-        const isOverdue =
-          task.dueDate &&
-          !task.completed &&
-          isPast(new Date(task.dueDate)) &&
-          !isToday(new Date(task.dueDate));
         const isTimerActive = task.id === activeTimerId;
         const displayTimeMs = isTimerActive
           ? task.timeInvestedMs + currentElapsedMs
@@ -111,157 +77,16 @@ export function TodayList({ tasks, onToggle, onDelete, onEdit, activeTimerId, cu
               task.completed && "opacity-60"
             )}
           >
-            <Checkbox
-              ref={(el) => {
-                if (el) checkboxRefs.current.set(task.id, el);
-                else checkboxRefs.current.delete(task.id);
-              }}
-              checked={task.completed}
-              onCheckedChange={() => {
-                if (!task.completed) {
-                  const el = checkboxRefs.current.get(task.id);
-                  if (el) {
-                    const rect = el.getBoundingClientRect();
-                    confetti({
-                      particleCount: 50,
-                      spread: 60,
-                      origin: {
-                        x: (rect.left + rect.width / 2) / window.innerWidth,
-                        y: (rect.top + rect.height / 2) / window.innerHeight,
-                      },
-                      ticks: 100,
-                      gravity: 1.2,
-                      scalar: 0.8,
-                    });
-                  }
-                  if (completionSound.current) {
-                    completionSound.current.currentTime = 0;
-                    completionSound.current.play();
-                  }
-                }
-                onToggle(task.id);
-              }}
-              className="shrink-0"
+            <TaskRowContent
+              task={task}
+              onToggle={onToggle}
+              onDelete={onDelete}
+              onEdit={onEdit}
+              isTimerActive={isTimerActive}
+              displayTimeMs={displayTimeMs}
+              onStartTimer={onStartTimer}
+              onPauseTimer={onPauseTimer}
             />
-
-            <span
-              className={cn(
-                "min-w-0 flex-1 truncate text-sm",
-                task.completed && "line-through text-muted-foreground"
-              )}
-            >
-              {task.title}
-            </span>
-
-            <div className="flex shrink-0 items-center gap-1.5">
-              {task.recurrence && (
-                <Badge
-                  variant="outline"
-                  className="flex items-center gap-1 text-xs"
-                  title={formatRecurrencePattern(task.recurrence)}
-                >
-                  <Repeat className="h-3 w-3" />
-                  {formatRecurrencePattern(task.recurrence)}
-                </Badge>
-              )}
-
-              {(task.completionHistory?.length ?? 0) > 0 && (
-                <span
-                  className="text-xs text-muted-foreground"
-                  title={`Completed ${task.completionHistory!.length} time${task.completionHistory!.length === 1 ? "" : "s"}`}
-                >
-                  {task.completionHistory!.length}x
-                </span>
-              )}
-
-              <Badge
-                variant="secondary"
-                className={cn("text-xs", priorityColors[task.priority])}
-              >
-                {task.priority}
-              </Badge>
-
-              {task.dueDate && (
-                <span
-                  className={cn(
-                    "flex items-center gap-1 text-xs text-muted-foreground",
-                    isOverdue && "text-red-600 dark:text-red-400"
-                  )}
-                >
-                  <Calendar className="h-3 w-3" />
-                  {format(new Date(task.dueDate), "MMM d")}
-                </span>
-              )}
-
-              {task.scheduledDate && (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  {format(new Date(task.scheduledDate), "MMM d")}
-                </span>
-              )}
-
-              {(displayTimeMs > 0 || isTimerActive) && (
-                <span
-                  className={cn(
-                    "font-mono text-xs tabular-nums",
-                    isTimerActive
-                      ? "text-blue-600 dark:text-blue-400"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  {formatDuration(displayTimeMs)}
-                </span>
-              )}
-
-              {!task.completed && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "h-7 w-7",
-                    isTimerActive
-                      ? "text-blue-600 hover:text-blue-700 dark:text-blue-400"
-                      : "text-muted-foreground hover:text-foreground",
-                    !isTimerActive && displayTimeMs === 0 && "opacity-0 group-hover:opacity-100"
-                  )}
-                  onClick={() => {
-                    if (isTimerActive) {
-                      onPauseTimer();
-                    } else {
-                      onStartTimer(task.id);
-                    }
-                  }}
-                  title={isTimerActive ? "Pause timer" : "Start timer"}
-                >
-                  {isTimerActive ? (
-                    <Pause className="h-3.5 w-3.5" />
-                  ) : (
-                    <Play className="h-3.5 w-3.5" />
-                  )}
-                </Button>
-              )}
-
-              <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => onEdit(task)}
-                  title="Edit task"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-destructive hover:text-destructive"
-                  onClick={() => onDelete(task.id)}
-                  title="Delete task"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
           </div>
         );
       })}
