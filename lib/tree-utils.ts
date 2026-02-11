@@ -35,6 +35,7 @@ export function buildTree(flattenedItems: FlattenedTask[]): Task[] {
       recurrence: item.recurrence,
       completionHistory: item.completionHistory,
       timeInvestedMs: item.timeInvestedMs,
+      archived: item.archived,
     };
     map.set(task.id, task);
   }
@@ -170,6 +171,7 @@ export function getTasksForToday(tasks: Task[], today: Date): Task[] {
   const results: Task[] = [];
   function collect(items: Task[]) {
     for (const task of items) {
+      if (task.archived) continue;
       if (
         (task.dueDate && isSameDay(new Date(task.dueDate), today)) ||
         (task.scheduledDate && isSameDay(new Date(task.scheduledDate), today))
@@ -177,6 +179,33 @@ export function getTasksForToday(tasks: Task[], today: Date): Task[] {
         results.push({ ...task, children: [] });
       }
       collect(task.children);
+    }
+  }
+  collect(tasks);
+  return results;
+}
+
+/** Return only non-archived tasks, recursively. */
+export function excludeArchivedTasks(tasks: Task[]): Task[] {
+  return tasks.reduce<Task[]>((acc, task) => {
+    if (task.archived) return acc;
+    return [
+      ...acc,
+      { ...task, children: excludeArchivedTasks(task.children) },
+    ];
+  }, []);
+}
+
+/** Collect top-level archived tasks (with children intact) for the Archived tab. */
+export function collectArchivedTasks(tasks: Task[]): Task[] {
+  const results: Task[] = [];
+  function collect(items: Task[]) {
+    for (const task of items) {
+      if (task.archived) {
+        results.push(task);
+      } else {
+        collect(task.children);
+      }
     }
   }
   collect(tasks);

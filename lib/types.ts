@@ -22,6 +22,7 @@ export interface Task {
   recurrence?: RecurrencePattern;
   completionHistory?: string[];
   timeInvestedMs: number;
+  archived: boolean;
 }
 
 export interface FlattenedTask extends Task {

@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
-import { ListTodo, Plus, CalendarCheck } from "lucide-react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { ListTodo, Plus, CalendarCheck, Archive } from "lucide-react";
 import { useTaskStore } from "@/hooks/use-task-store";
 import { useTimer } from "@/hooks/use-timer";
 import { findItemDeep } from "@/lib/tree-utils";
 import { TaskTree } from "@/components/task-tree";
 import { TodayList } from "@/components/today-list";
+import { ArchivedList } from "@/components/archived-list";
+import { excludeArchivedTasks } from "@/lib/tree-utils";
 import { TaskForm } from "@/components/task-form";
 import {
   Dialog,
@@ -26,6 +28,8 @@ export default function Home() {
     deleteTask,
     toggleTask,
     reorderTasks,
+    archiveTask,
+    unarchiveTask,
   } = useTaskStore();
 
   const handleSaveElapsed = useCallback(
@@ -62,6 +66,13 @@ export default function Home() {
     stopTimerForTask(id);
     deleteTask(id);
   }
+
+  function handleArchiveWithTimer(id: string) {
+    stopTimerForTask(id);
+    archiveTask(id);
+  }
+
+  const activeTasks = useMemo(() => excludeArchivedTasks(tasks), [tasks]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -134,10 +145,14 @@ export default function Home() {
               <CalendarCheck className="mr-2 h-4 w-4" />
               Today
             </TabsTrigger>
+            <TabsTrigger value="archived">
+              <Archive className="mr-2 h-4 w-4" />
+              Archived
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="all">
-            {tasks.length === 0 ? (
+            {activeTasks.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed py-16">
                 <ListTodo className="h-12 w-12 text-muted-foreground" />
                 <div className="text-center">
@@ -153,12 +168,13 @@ export default function Home() {
               </div>
             ) : (
               <TaskTree
-                tasks={tasks}
+                tasks={activeTasks}
                 onReorder={reorderTasks}
                 onToggle={handleToggleWithTimer}
                 onDelete={handleDeleteWithTimer}
                 onEdit={handleEdit}
                 onAddSubtask={handleAddSubtask}
+                onArchive={handleArchiveWithTimer}
                 activeTimerId={activeTimerId}
                 currentElapsedMs={currentElapsedMs}
                 onStartTimer={startTimer}
@@ -173,10 +189,19 @@ export default function Home() {
               onToggle={handleToggleWithTimer}
               onDelete={handleDeleteWithTimer}
               onEdit={handleEdit}
+              onArchive={handleArchiveWithTimer}
               activeTimerId={activeTimerId}
               currentElapsedMs={currentElapsedMs}
               onStartTimer={startTimer}
               onPauseTimer={pauseTimer}
+            />
+          </TabsContent>
+
+          <TabsContent value="archived">
+            <ArchivedList
+              tasks={tasks}
+              onUnarchive={unarchiveTask}
+              onDelete={handleDeleteWithTimer}
             />
           </TabsContent>
         </Tabs>

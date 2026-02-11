@@ -11,6 +11,7 @@ import {
   Repeat,
   Play,
   Pause,
+  Archive,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { formatRecurrencePattern } from "@/lib/recurrence-utils";
@@ -28,6 +29,7 @@ interface TaskRowContentProps {
   onDelete: (id: string) => void;
   onEdit: (task: Task) => void;
   onAddSubtask?: (parentId: string) => void;
+  onArchive?: (id: string) => void;
   isTimerActive: boolean;
   displayTimeMs: number;
   onStartTimer: (taskId: string) => void;
@@ -40,6 +42,7 @@ export function TaskRowContent({
   onDelete,
   onEdit,
   onAddSubtask,
+  onArchive,
   isTimerActive,
   displayTimeMs,
   onStartTimer,
@@ -209,6 +212,17 @@ export function TaskRowContent({
           >
             <Pencil className="h-3.5 w-3.5" />
           </Button>
+          {onArchive && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => onArchive(task.id)}
+              title="Archive task"
+            >
+              <Archive className="h-3.5 w-3.5" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"

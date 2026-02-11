@@ -14,13 +14,14 @@ interface TodayListProps {
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onEdit: (task: Task) => void;
+  onArchive?: (id: string) => void;
   activeTimerId: string | null;
   currentElapsedMs: number;
   onStartTimer: (taskId: string) => void;
   onPauseTimer: () => void;
 }
 
-export function TodayList({ tasks, onToggle, onDelete, onEdit, activeTimerId, currentElapsedMs, onStartTimer, onPauseTimer }: TodayListProps) {
+export function TodayList({ tasks, onToggle, onDelete, onEdit, onArchive, activeTimerId, currentElapsedMs, onStartTimer, onPauseTimer }: TodayListProps) {
   const todayTasks = useMemo(() => {
     const today = startOfDay(new Date());
     return getTasksForToday(tasks, today);
@@ -82,6 +83,7 @@ export function TodayList({ tasks, onToggle, onDelete, onEdit, activeTimerId, cu
               onToggle={onToggle}
               onDelete={onDelete}
               onEdit={onEdit}
+              onArchive={onArchive}
               isTimerActive={isTimerActive}
               displayTimeMs={displayTimeMs}
               onStartTimer={onStartTimer}

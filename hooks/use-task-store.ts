@@ -11,8 +11,33 @@ function migrateTask(task: Task): Task {
   return {
     ...task,
     timeInvestedMs: task.timeInvestedMs ?? 0,
+    archived: task.archived ?? false,
     children: task.children.map(migrateTask),
   };
+}
+
+function setArchivedDeep(items: Task[], archived: boolean): Task[] {
+  return items.map((item) => ({
+    ...item,
+    archived,
+    children: setArchivedDeep(item.children, archived),
+  }));
+}
+
+function setArchivedOnTask(items: Task[], id: string, archived: boolean): Task[] {
+  return items.map((item) => {
+    if (item.id === id) {
+      return {
+        ...item,
+        archived,
+        children: setArchivedDeep(item.children, archived),
+      };
+    }
+    if (item.children.length > 0) {
+      return { ...item, children: setArchivedOnTask(item.children, id, archived) };
+    }
+    return item;
+  });
 }
 
 export function useTaskStore() {
@@ -67,6 +92,7 @@ export function useTaskStore() {
         recurrence,
         completionHistory: recurrence ? [] : undefined,
         timeInvestedMs: 0,
+        archived: false,
       };
 
       if (parentId === null) {
@@ -171,6 +197,14 @@ export function useTaskStore() {
     setTasks(newTasks);
   }, []);
 
+  const archiveTask = useCallback((id: string) => {
+    setTasks((prev) => setArchivedOnTask(prev, id, true));
+  }, []);
+
+  const unarchiveTask = useCallback((id: string) => {
+    setTasks((prev) => setArchivedOnTask(prev, id, false));
+  }, []);
+
   return {
     tasks,
     addTask,
@@ -178,5 +212,7 @@ export function useTaskStore() {
     deleteTask,
     toggleTask,
     reorderTasks,
+    archiveTask,
+    unarchiveTask,
   };
 }
