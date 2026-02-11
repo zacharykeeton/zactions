@@ -49,7 +49,10 @@ export function TaskRowContent({
   const completionSound = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    completionSound.current = new Audio("/sounds/liecio-bonus-points-190035.mp3");
+    const audio = new Audio("/sounds/liecio-bonus-points-190035.mp3");
+    audio.preload = "auto";
+    audio.load();
+    completionSound.current = audio;
   }, []);
 
   const handleToggle = useCallback(() => {
