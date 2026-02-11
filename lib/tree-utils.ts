@@ -34,6 +34,7 @@ export function buildTree(flattenedItems: FlattenedTask[]): Task[] {
       children: [],
       recurrence: item.recurrence,
       completionHistory: item.completionHistory,
+      timeInvestedMs: item.timeInvestedMs,
     };
     map.set(task.id, task);
   }

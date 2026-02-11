@@ -7,6 +7,14 @@ import { removeItem, findItemDeep } from "@/lib/tree-utils";
 import { getNextDueDate } from "@/lib/recurrence-utils";
 import { LOCAL_STORAGE_KEY } from "@/lib/constants";
 
+function migrateTask(task: Task): Task {
+  return {
+    ...task,
+    timeInvestedMs: task.timeInvestedMs ?? 0,
+    children: task.children.map(migrateTask),
+  };
+}
+
 export function useTaskStore() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const isLoadingFromStorage = useRef(true);
@@ -26,7 +34,7 @@ export function useTaskStore() {
     if (stored) {
       try {
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setTasks(JSON.parse(stored));
+        setTasks((JSON.parse(stored) as Task[]).map(migrateTask));
       } catch { /* corrupt data, start fresh */ }
     }
     isLoadingFromStorage.current = false;
@@ -58,6 +66,7 @@ export function useTaskStore() {
         children: [],
         recurrence,
         completionHistory: recurrence ? [] : undefined,
+        timeInvestedMs: 0,
       };
 
       if (parentId === null) {

@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { ListTodo, Plus, CalendarCheck } from "lucide-react";
 import { useTaskStore } from "@/hooks/use-task-store";
+import { useTimer } from "@/hooks/use-timer";
+import { findItemDeep } from "@/lib/tree-utils";
 import { TaskTree } from "@/components/task-tree";
 import { TodayList } from "@/components/today-list";
 import { TaskForm } from "@/components/task-form";
@@ -25,6 +27,41 @@ export default function Home() {
     toggleTask,
     reorderTasks,
   } = useTaskStore();
+
+  const handleSaveElapsed = useCallback(
+    (taskId: string, elapsedMs: number) => {
+      const task = findItemDeep(tasks, taskId);
+      if (task) {
+        updateTask(taskId, { timeInvestedMs: task.timeInvestedMs + elapsedMs });
+      }
+    },
+    [tasks, updateTask]
+  );
+
+  const saveElapsedRef = useRef(handleSaveElapsed);
+  useEffect(() => {
+    saveElapsedRef.current = handleSaveElapsed;
+  }, [handleSaveElapsed]);
+
+  const stableSaveElapsed = useCallback(
+    (taskId: string, elapsedMs: number) => {
+      saveElapsedRef.current(taskId, elapsedMs);
+    },
+    []
+  );
+
+  const { activeTimerId, currentElapsedMs, startTimer, pauseTimer, stopTimerForTask } =
+    useTimer(stableSaveElapsed);
+
+  function handleToggleWithTimer(id: string) {
+    stopTimerForTask(id);
+    toggleTask(id);
+  }
+
+  function handleDeleteWithTimer(id: string) {
+    stopTimerForTask(id);
+    deleteTask(id);
+  }
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -118,10 +155,14 @@ export default function Home() {
               <TaskTree
                 tasks={tasks}
                 onReorder={reorderTasks}
-                onToggle={toggleTask}
-                onDelete={deleteTask}
+                onToggle={handleToggleWithTimer}
+                onDelete={handleDeleteWithTimer}
                 onEdit={handleEdit}
                 onAddSubtask={handleAddSubtask}
+                activeTimerId={activeTimerId}
+                currentElapsedMs={currentElapsedMs}
+                onStartTimer={startTimer}
+                onPauseTimer={pauseTimer}
               />
             )}
           </TabsContent>
@@ -129,9 +170,13 @@ export default function Home() {
           <TabsContent value="today">
             <TodayList
               tasks={tasks}
-              onToggle={toggleTask}
-              onDelete={deleteTask}
+              onToggle={handleToggleWithTimer}
+              onDelete={handleDeleteWithTimer}
               onEdit={handleEdit}
+              activeTimerId={activeTimerId}
+              currentElapsedMs={currentElapsedMs}
+              onStartTimer={startTimer}
+              onPauseTimer={pauseTimer}
             />
           </TabsContent>
         </Tabs>

@@ -12,11 +12,14 @@ import {
   Calendar,
   Clock,
   Repeat,
+  Play,
+  Pause,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { formatRecurrencePattern } from "@/lib/recurrence-utils";
 import type { FlattenedTask, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { formatDuration } from "@/lib/time-utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +33,10 @@ interface TaskItemProps {
   onEdit: (task: Task) => void;
   onAddSubtask: (parentId: string) => void;
   isGhost?: boolean;
+  isTimerActive: boolean;
+  displayTimeMs: number;
+  onStartTimer: (taskId: string) => void;
+  onPauseTimer: () => void;
 }
 
 const priorityColors: Record<string, string> = {
@@ -47,6 +54,10 @@ export function TaskItem({
   onDelete,
   onEdit,
   onAddSubtask,
+  isTimerActive,
+  displayTimeMs,
+  onStartTimer,
+  onPauseTimer,
 }: TaskItemProps) {
   const {
     attributes,
@@ -178,6 +189,47 @@ export function TaskItem({
             <Clock className="h-3 w-3" />
             {format(new Date(task.scheduledDate), "MMM d")}
           </span>
+        )}
+
+        {(displayTimeMs > 0 || isTimerActive) && (
+          <span
+            className={cn(
+              "font-mono text-xs tabular-nums",
+              isTimerActive
+                ? "text-blue-600 dark:text-blue-400"
+                : "text-muted-foreground"
+            )}
+          >
+            {formatDuration(displayTimeMs)}
+          </span>
+        )}
+
+        {!task.completed && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "h-7 w-7",
+              isTimerActive
+                ? "text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                : "text-muted-foreground hover:text-foreground",
+              !isTimerActive && displayTimeMs === 0 && "opacity-0 group-hover:opacity-100"
+            )}
+            onClick={() => {
+              if (isTimerActive) {
+                onPauseTimer();
+              } else {
+                onStartTimer(task.id);
+              }
+            }}
+            title={isTimerActive ? "Pause timer" : "Start timer"}
+          >
+            {isTimerActive ? (
+              <Pause className="h-3.5 w-3.5" />
+            ) : (
+              <Play className="h-3.5 w-3.5" />
+            )}
+          </Button>
         )}
 
         <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">

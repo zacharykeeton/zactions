@@ -10,11 +10,14 @@ import {
   Calendar,
   Clock,
   Repeat,
+  Play,
+  Pause,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { formatRecurrencePattern } from "@/lib/recurrence-utils";
 import type { Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { formatDuration } from "@/lib/time-utils";
 import { getTasksForToday } from "@/lib/tree-utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -33,9 +36,13 @@ interface TodayListProps {
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onEdit: (task: Task) => void;
+  activeTimerId: string | null;
+  currentElapsedMs: number;
+  onStartTimer: (taskId: string) => void;
+  onPauseTimer: () => void;
 }
 
-export function TodayList({ tasks, onToggle, onDelete, onEdit }: TodayListProps) {
+export function TodayList({ tasks, onToggle, onDelete, onEdit, activeTimerId, currentElapsedMs, onStartTimer, onPauseTimer }: TodayListProps) {
   const checkboxRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const completionSound = useRef<HTMLAudioElement | null>(null);
 
@@ -91,6 +98,10 @@ export function TodayList({ tasks, onToggle, onDelete, onEdit }: TodayListProps)
           !task.completed &&
           isPast(new Date(task.dueDate)) &&
           !isToday(new Date(task.dueDate));
+        const isTimerActive = task.id === activeTimerId;
+        const displayTimeMs = isTimerActive
+          ? task.timeInvestedMs + currentElapsedMs
+          : task.timeInvestedMs;
 
         return (
           <div
@@ -187,6 +198,47 @@ export function TodayList({ tasks, onToggle, onDelete, onEdit }: TodayListProps)
                   <Clock className="h-3 w-3" />
                   {format(new Date(task.scheduledDate), "MMM d")}
                 </span>
+              )}
+
+              {(displayTimeMs > 0 || isTimerActive) && (
+                <span
+                  className={cn(
+                    "font-mono text-xs tabular-nums",
+                    isTimerActive
+                      ? "text-blue-600 dark:text-blue-400"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {formatDuration(displayTimeMs)}
+                </span>
+              )}
+
+              {!task.completed && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "h-7 w-7",
+                    isTimerActive
+                      ? "text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                      : "text-muted-foreground hover:text-foreground",
+                    !isTimerActive && displayTimeMs === 0 && "opacity-0 group-hover:opacity-100"
+                  )}
+                  onClick={() => {
+                    if (isTimerActive) {
+                      onPauseTimer();
+                    } else {
+                      onStartTimer(task.id);
+                    }
+                  }}
+                  title={isTimerActive ? "Pause timer" : "Start timer"}
+                >
+                  {isTimerActive ? (
+                    <Pause className="h-3.5 w-3.5" />
+                  ) : (
+                    <Play className="h-3.5 w-3.5" />
+                  )}
+                </Button>
               )}
 
               <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">

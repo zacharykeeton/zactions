@@ -52,6 +52,10 @@ interface TaskTreeProps {
   onDelete: (id: string) => void;
   onEdit: (task: Task) => void;
   onAddSubtask: (parentId: string) => void;
+  activeTimerId: string | null;
+  currentElapsedMs: number;
+  onStartTimer: (taskId: string) => void;
+  onPauseTimer: () => void;
 }
 
 export function TaskTree({
@@ -61,6 +65,10 @@ export function TaskTree({
   onDelete,
   onEdit,
   onAddSubtask,
+  activeTimerId,
+  currentElapsedMs,
+  onStartTimer,
+  onPauseTimer,
 }: TaskTreeProps) {
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const [overId, setOverId] = useState<UniqueIdentifier | null>(null);
@@ -175,6 +183,14 @@ export function TaskTree({
               onDelete={onDelete}
               onEdit={onEdit}
               onAddSubtask={onAddSubtask}
+              isTimerActive={task.id === activeTimerId}
+              displayTimeMs={
+                task.id === activeTimerId
+                  ? task.timeInvestedMs + currentElapsedMs
+                  : task.timeInvestedMs
+              }
+              onStartTimer={onStartTimer}
+              onPauseTimer={onPauseTimer}
             />
           ))}
         </div>

@@ -21,6 +21,7 @@ export interface Task {
   children: Task[];
   recurrence?: RecurrencePattern;
   completionHistory?: string[];
+  timeInvestedMs: number;
 }
 
 export interface FlattenedTask extends Task {
