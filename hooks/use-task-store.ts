@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import type { Task, Priority, RecurrencePattern } from "@/lib/types";
 import { removeItem, findItemDeep } from "@/lib/tree-utils";
-import { getNextDueDate } from "@/lib/recurrence-utils";
+import { getNextDueDate, fastForwardDueDate } from "@/lib/recurrence-utils";
 import { LOCAL_STORAGE_KEY } from "@/lib/constants";
 
 function migrateTask(task: Task): Task {
@@ -205,6 +205,31 @@ export function useTaskStore() {
     setTasks((prev) => setArchivedOnTask(prev, id, false));
   }, []);
 
+  const fastForwardTask = useCallback((id: string) => {
+    setTasks((prev) => {
+      const task = findItemDeep(prev, id);
+      if (!task || !task.recurrence || !task.dueDate) return prev;
+
+      // Calculate the next due date >= today
+      const nextDue = fastForwardDueDate(task.dueDate, task.recurrence);
+
+      // Update the task with the new due date
+      const update = (items: Task[]): Task[] =>
+        items.map((item) => {
+          if (item.id === id) {
+            return {
+              ...item,
+              dueDate: nextDue,
+            };
+          }
+          if (item.children.length > 0)
+            return { ...item, children: update(item.children) };
+          return item;
+        });
+      return update(prev);
+    });
+  }, []);
+
   return {
     tasks,
     addTask,
@@ -214,5 +239,6 @@ export function useTaskStore() {
     reorderTasks,
     archiveTask,
     unarchiveTask,
+    fastForwardTask,
   };
 }

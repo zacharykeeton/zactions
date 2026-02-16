@@ -53,6 +53,7 @@ interface TaskTreeProps {
   onEdit: (task: Task) => void;
   onAddSubtask: (parentId: string) => void;
   onArchive?: (id: string) => void;
+  onFastForward?: (id: string) => void;
   activeTimerId: string | null;
   currentElapsedMs: number;
   onStartTimer: (taskId: string) => void;
@@ -67,6 +68,7 @@ export function TaskTree({
   onEdit,
   onAddSubtask,
   onArchive,
+  onFastForward,
   activeTimerId,
   currentElapsedMs,
   onStartTimer,
@@ -186,6 +188,7 @@ export function TaskTree({
               onEdit={onEdit}
               onAddSubtask={onAddSubtask}
               onArchive={onArchive}
+              onFastForward={onFastForward}
               isTimerActive={task.id === activeTimerId}
               displayTimeMs={
                 task.id === activeTimerId

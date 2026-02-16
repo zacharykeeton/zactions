@@ -30,6 +30,7 @@ export default function Home() {
     reorderTasks,
     archiveTask,
     unarchiveTask,
+    fastForwardTask,
   } = useTaskStore();
 
   const handleSaveElapsed = useCallback(
@@ -175,6 +176,7 @@ export default function Home() {
                 onEdit={handleEdit}
                 onAddSubtask={handleAddSubtask}
                 onArchive={handleArchiveWithTimer}
+                onFastForward={fastForwardTask}
                 activeTimerId={activeTimerId}
                 currentElapsedMs={currentElapsedMs}
                 onStartTimer={startTimer}
@@ -190,6 +192,7 @@ export default function Home() {
               onDelete={handleDeleteWithTimer}
               onEdit={handleEdit}
               onArchive={handleArchiveWithTimer}
+              onFastForward={fastForwardTask}
               activeTimerId={activeTimerId}
               currentElapsedMs={currentElapsedMs}
               onStartTimer={startTimer}

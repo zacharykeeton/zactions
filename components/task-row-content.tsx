@@ -12,6 +12,7 @@ import {
   Play,
   Pause,
   Archive,
+  FastForward,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { formatRecurrencePattern } from "@/lib/recurrence-utils";
@@ -30,6 +31,7 @@ interface TaskRowContentProps {
   onEdit: (task: Task) => void;
   onAddSubtask?: (parentId: string) => void;
   onArchive?: (id: string) => void;
+  onFastForward?: (id: string) => void;
   isTimerActive: boolean;
   displayTimeMs: number;
   onStartTimer: (taskId: string) => void;
@@ -43,6 +45,7 @@ export function TaskRowContent({
   onEdit,
   onAddSubtask,
   onArchive,
+  onFastForward,
   isTimerActive,
   displayTimeMs,
   onStartTimer,
@@ -84,6 +87,9 @@ export function TaskRowContent({
     !task.completed &&
     isPast(new Date(task.dueDate)) &&
     !isToday(new Date(task.dueDate));
+
+  const showFastForward =
+    task.recurrence && isOverdue && onFastForward;
 
   return (
     <>
@@ -192,6 +198,17 @@ export function TaskRowContent({
         )}
 
         <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+          {showFastForward && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-blue-600 hover:text-blue-700 dark:text-blue-400"
+              onClick={() => onFastForward(task.id)}
+              title="Fast forward to next due date"
+            >
+              <FastForward className="h-3.5 w-3.5" />
+            </Button>
+          )}
           {onAddSubtask && !task.recurrence && (
             <Button
               variant="ghost"
