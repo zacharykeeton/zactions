@@ -185,6 +185,42 @@ export function getTasksForToday(tasks: Task[], today: Date): Task[] {
   return results;
 }
 
+/**
+ * Check if a task was completed today, including recurring tasks that have been reset.
+ * Returns true if:
+ * - Task is currently marked as completed, OR
+ * - Task has a completion in its history from today
+ */
+export function wasCompletedToday(task: Task, today: Date): boolean {
+  // Normal completion
+  if (task.completed) return true;
+
+  // Check recurring task completion history
+  if (task.completionHistory && task.completionHistory.length > 0) {
+    return task.completionHistory.some((timestamp) =>
+      isSameDay(new Date(timestamp), today)
+    );
+  }
+
+  return false;
+}
+
+/**
+ * Calculate today's progress statistics for a list of tasks.
+ * Counts tasks completed today, including recurring tasks that have been reset.
+ */
+export function getTodayProgress(tasks: Task[], today: Date): {
+  completedCount: number;
+  totalCount: number;
+  percentage: number;
+} {
+  const totalCount = tasks.length;
+  const completedCount = tasks.filter(task => wasCompletedToday(task, today)).length;
+  const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  return { completedCount, totalCount, percentage };
+}
+
 /** Return only non-archived tasks, recursively. */
 export function excludeArchivedTasks(tasks: Task[]): Task[] {
   return tasks.reduce<Task[]>((acc, task) => {

@@ -5,7 +5,7 @@ import { startOfDay } from "date-fns";
 import { CalendarCheck } from "lucide-react";
 import type { Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { getTasksForToday } from "@/lib/tree-utils";
+import { getTasksForToday, getTodayProgress } from "@/lib/tree-utils";
 import { Progress } from "@/components/ui/progress";
 import { TaskRowContent } from "@/components/task-row-content";
 
@@ -27,9 +27,10 @@ export function TodayList({ tasks, onToggle, onDelete, onEdit, onArchive, active
     return getTasksForToday(tasks, today);
   }, [tasks]);
 
-  const completedCount = todayTasks.filter((t) => t.completed).length;
-  const totalCount = todayTasks.length;
-  const completionPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const { completedCount, totalCount, percentage: completionPercent } = useMemo(() => {
+    const today = startOfDay(new Date());
+    return getTodayProgress(todayTasks, today);
+  }, [todayTasks]);
 
   if (todayTasks.length === 0) {
     return (
