@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { ListTodo, Plus, CalendarCheck, Archive } from "lucide-react";
+import { preloadCompletionSound } from "@/lib/completion-sound";
 import { useTaskStore } from "@/hooks/use-task-store";
 import { useTimer } from "@/hooks/use-timer";
 import { findItemDeep } from "@/lib/tree-utils";
@@ -21,6 +22,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Task, Priority, RecurrencePattern } from "@/lib/types";
 
 export default function Home() {
+  // Eagerly decode the completion sound so it's ready before the first click.
+  useEffect(() => {
+    preloadCompletionSound();
+  }, []);
+
   const {
     tasks,
     addTask,

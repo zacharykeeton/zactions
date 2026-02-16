@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 import { format, isPast, isToday } from "date-fns";
 import {
   Plus,
@@ -20,6 +20,7 @@ import { priorityColors } from "@/lib/constants";
 import type { Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/time-utils";
+import { playCompletionSound } from "@/lib/completion-sound";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,14 +53,6 @@ export function TaskRowContent({
   onPauseTimer,
 }: TaskRowContentProps) {
   const checkboxRef = useRef<HTMLButtonElement>(null);
-  const completionSound = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    const audio = new Audio("/sounds/liecio-bonus-points-190035.mp3");
-    audio.preload = "auto";
-    audio.load();
-    completionSound.current = audio;
-  }, []);
 
   const handleToggle = useCallback(() => {
     if (!task.completed && checkboxRef.current) {
@@ -74,10 +67,7 @@ export function TaskRowContent({
         gravity: 1.2,
         scalar: 0.8,
       });
-      if (completionSound.current) {
-        completionSound.current.currentTime = 0;
-        completionSound.current.play();
-      }
+      playCompletionSound();
     }
     onToggle(task.id);
   }, [task.completed, task.id, onToggle]);
