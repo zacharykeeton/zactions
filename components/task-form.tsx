@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Repeat } from "lucide-react";
+import { CalendarIcon, Repeat, X } from "lucide-react";
 import type { Task, Priority, RecurrenceInterval, DayOfWeek, RecurrencePattern } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -126,13 +126,14 @@ export function TaskForm({
 
       <div className="flex flex-col gap-2">
         <Label>Due Date</Label>
-        <div className="flex gap-2">
+        <div className="relative">
           <Popover open={dueDateOpen} onOpenChange={setDueDateOpen}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 className={cn(
                   "w-full justify-start text-left font-normal",
+                  dueDate && "pr-8",
                   !dueDate && "text-muted-foreground"
                 )}
               >
@@ -152,14 +153,13 @@ export function TaskForm({
             </PopoverContent>
           </Popover>
           {dueDate && (
-            <Button
+            <button
               type="button"
-              variant="ghost"
-              size="sm"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground opacity-50 hover:opacity-100"
               onClick={() => setDueDate(undefined)}
             >
-              Clear
-            </Button>
+              <X className="size-4" />
+            </button>
           )}
         </div>
       </div>
@@ -245,13 +245,14 @@ export function TaskForm({
 
       <div className="flex flex-col gap-2">
         <Label>Scheduled Date</Label>
-        <div className="flex gap-2">
+        <div className="relative">
           <Popover open={scheduledDateOpen} onOpenChange={setScheduledDateOpen}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 className={cn(
                   "w-full justify-start text-left font-normal",
+                  scheduledDate && "pr-8",
                   !scheduledDate && "text-muted-foreground"
                 )}
               >
@@ -271,14 +272,13 @@ export function TaskForm({
             </PopoverContent>
           </Popover>
           {scheduledDate && (
-            <Button
+            <button
               type="button"
-              variant="ghost"
-              size="sm"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground opacity-50 hover:opacity-100"
               onClick={() => setScheduledDate(undefined)}
             >
-              Clear
-            </Button>
+              <X className="size-4" />
+            </button>
           )}
         </div>
       </div>
