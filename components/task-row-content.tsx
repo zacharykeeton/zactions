@@ -14,6 +14,7 @@ import {
   Pause,
   Archive,
   FastForward,
+  SkipForward,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { formatRecurrencePattern } from "@/lib/recurrence-utils";
@@ -34,6 +35,7 @@ interface TaskRowContentProps {
   onAddSubtask?: (parentId: string) => void;
   onArchive?: (id: string) => void;
   onFastForward?: (id: string) => void;
+  onSkipToday?: (id: string) => void;
   isTimerActive: boolean;
   displayTimeMs: number;
   onStartTimer: (taskId: string) => void;
@@ -48,6 +50,7 @@ export function TaskRowContent({
   onAddSubtask,
   onArchive,
   onFastForward,
+  onSkipToday,
   isTimerActive,
   displayTimeMs,
   onStartTimer,
@@ -81,6 +84,12 @@ export function TaskRowContent({
 
   const showFastForward =
     task.recurrence && isOverdue && onFastForward;
+
+  const isDueToday =
+    task.dueDate && !task.completed && isToday(new Date(task.dueDate));
+  const isScheduledToday =
+    task.scheduledDate && !task.completed && isToday(new Date(task.scheduledDate));
+  const showSkipToday = onSkipToday && (isDueToday || isScheduledToday);
 
   return (
     <>
@@ -203,6 +212,17 @@ export function TaskRowContent({
               title="Fast forward to next due date"
             >
               <FastForward className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {showSkipToday && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-blue-600 hover:text-blue-700 dark:text-blue-400"
+              onClick={() => onSkipToday(task.id)}
+              title="Skip to tomorrow"
+            >
+              <SkipForward className="h-3.5 w-3.5" />
             </Button>
           )}
           {onAddSubtask && !task.recurrence && (

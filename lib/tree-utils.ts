@@ -1,5 +1,5 @@
 import { arrayMove } from "@dnd-kit/sortable";
-import { isSameDay } from "date-fns";
+import { isSameDay, isBefore } from "date-fns";
 import type { Task, FlattenedTask } from "./types";
 
 function flatten(
@@ -172,10 +172,10 @@ export function getTasksForToday(tasks: Task[], today: Date): Task[] {
   function collect(items: Task[]) {
     for (const task of items) {
       if (task.archived) continue;
-      if (
-        (task.dueDate && isSameDay(new Date(task.dueDate), today)) ||
-        (task.scheduledDate && isSameDay(new Date(task.scheduledDate), today))
-      ) {
+      const isDueToday = task.dueDate && isSameDay(new Date(task.dueDate), today);
+      const isScheduledToday = task.scheduledDate && isSameDay(new Date(task.scheduledDate), today);
+      const isPastDue = task.dueDate && !task.completed && isBefore(new Date(task.dueDate), today);
+      if (isDueToday || isScheduledToday || isPastDue) {
         results.push({ ...task, children: [] });
       }
       collect(task.children);

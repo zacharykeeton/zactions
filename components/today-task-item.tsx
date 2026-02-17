@@ -16,6 +16,7 @@ interface TodayTaskItemProps {
   onEdit: (task: Task) => void;
   onArchive?: (id: string) => void;
   onFastForward?: (id: string) => void;
+  onSkipToday?: (id: string) => void;
   isTimerActive: boolean;
   displayTimeMs: number;
   onStartTimer: (taskId: string) => void;
@@ -29,6 +30,7 @@ export function TodayTaskItem({
   onEdit,
   onArchive,
   onFastForward,
+  onSkipToday,
   isTimerActive,
   displayTimeMs,
   onStartTimer,
@@ -94,6 +96,7 @@ export function TodayTaskItem({
         onEdit={onEdit}
         onArchive={onArchive}
         onFastForward={onFastForward}
+        onSkipToday={onSkipToday}
         isTimerActive={isTimerActive}
         displayTimeMs={displayTimeMs}
         onStartTimer={onStartTimer}

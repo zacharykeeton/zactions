@@ -230,6 +230,40 @@ export function useTaskStore() {
     });
   }, []);
 
+  const skipTodayTask = useCallback((id: string) => {
+    setTasks((prev) => {
+      const task = findItemDeep(prev, id);
+      if (!task) return prev;
+
+      const todayStr = new Date().toISOString().split("T")[0];
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split("T")[0];
+
+      const dueIsToday =
+        task.dueDate && task.dueDate.split("T")[0] === todayStr;
+      const scheduledIsToday =
+        task.scheduledDate && task.scheduledDate.split("T")[0] === todayStr;
+
+      if (!dueIsToday && !scheduledIsToday) return prev;
+
+      const update = (items: Task[]): Task[] =>
+        items.map((item) => {
+          if (item.id === id) {
+            return {
+              ...item,
+              ...(dueIsToday && { dueDate: tomorrowStr }),
+              ...(scheduledIsToday && { scheduledDate: tomorrowStr }),
+            };
+          }
+          if (item.children.length > 0)
+            return { ...item, children: update(item.children) };
+          return item;
+        });
+      return update(prev);
+    });
+  }, []);
+
   return {
     tasks,
     addTask,
@@ -240,5 +274,6 @@ export function useTaskStore() {
     archiveTask,
     unarchiveTask,
     fastForwardTask,
+    skipTodayTask,
   };
 }

@@ -37,6 +37,7 @@ export default function Home() {
     archiveTask,
     unarchiveTask,
     fastForwardTask,
+    skipTodayTask,
   } = useTaskStore();
 
   const handleSaveElapsed = useCallback(
@@ -199,6 +200,7 @@ export default function Home() {
               onEdit={handleEdit}
               onArchive={handleArchiveWithTimer}
               onFastForward={fastForwardTask}
+              onSkipToday={skipTodayTask}
               activeTimerId={activeTimerId}
               currentElapsedMs={currentElapsedMs}
               onStartTimer={startTimer}
