@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { startOfDay } from "date-fns";
 import { CalendarCheck } from "lucide-react";
 import {
@@ -55,18 +55,20 @@ export function TodayList({
     return getTasksForToday(tasks, today);
   }, [tasks]);
 
-  // Sort tasks and cleanup stale IDs
-  const sortedTodayTasks = useMemo(() => {
-    const sorted = sortTodayTasks(todayTasks, sortOrder);
+  // Sort tasks using the persisted sort order
+  const sortedTodayTasks = useMemo(
+    () => sortTodayTasks(todayTasks, sortOrder),
+    [todayTasks, sortOrder]
+  );
 
-    // Cleanup: remove IDs that no longer exist in today's tasks
+  // Cleanup stale IDs in a proper effect (not inside useMemo)
+  useEffect(() => {
+    if (todayTasks.length === 0 || sortOrder.length === 0) return;
     const validIds = new Set(todayTasks.map((t) => t.id));
     const hasStaleIds = sortOrder.some((id) => !validIds.has(id));
     if (hasStaleIds) {
       cleanupStaleIds(validIds);
     }
-
-    return sorted;
   }, [todayTasks, sortOrder, cleanupStaleIds]);
 
   const { completedCount, totalCount, percentage: completionPercent } =
