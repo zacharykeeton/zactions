@@ -49,15 +49,7 @@ export function TodayTaskItem({
     transition,
   };
 
-  // Determine due date and scheduled date status
-  const isDueToday =
-    task.dueDate && !task.completed && isToday(new Date(task.dueDate));
-
-  const isScheduledToday =
-    task.scheduledDate &&
-    !task.completed &&
-    isToday(new Date(task.scheduledDate));
-
+  // Determine overdue status (today background is skipped — redundant in Today list)
   const isDueOverdue =
     task.dueDate &&
     !task.completed &&
@@ -70,7 +62,6 @@ export function TodayTaskItem({
     isPast(new Date(task.scheduledDate)) &&
     !isToday(new Date(task.scheduledDate));
 
-  const shouldShowTodayBackground = isDueToday || isScheduledToday;
   const shouldShowOverdueBackground = isDueOverdue || isScheduledOverdue;
 
   return (
@@ -79,13 +70,10 @@ export function TodayTaskItem({
       style={style}
       className={cn(
         "group flex items-center gap-2 rounded-md border border-transparent px-2 py-1.5 hover:border-border",
-        !shouldShowTodayBackground &&
-          !shouldShowOverdueBackground &&
+        !shouldShowOverdueBackground &&
           "hover:bg-accent/50",
         isDragging && "z-50 opacity-40",
         task.completed && "opacity-60",
-        shouldShowTodayBackground &&
-          "bg-emerald-100 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/40",
         shouldShowOverdueBackground &&
           "bg-red-100 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/40"
       )}
