@@ -175,7 +175,8 @@ export function getTasksForToday(tasks: Task[], today: Date): Task[] {
       const isDueToday = task.dueDate && isSameDay(new Date(task.dueDate), today);
       const isScheduledToday = task.scheduledDate && isSameDay(new Date(task.scheduledDate), today);
       const isPastDue = task.dueDate && !task.completed && isBefore(new Date(task.dueDate), today);
-      if (isDueToday || isScheduledToday || isPastDue) {
+      const isPastScheduled = task.scheduledDate && !task.completed && isBefore(new Date(task.scheduledDate), today);
+      if (isDueToday || isScheduledToday || isPastDue || isPastScheduled) {
         results.push({ ...task, children: [] });
       }
       collect(task.children);
