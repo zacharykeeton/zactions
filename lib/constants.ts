@@ -1,5 +1,6 @@
 export const INDENTATION_WIDTH = 32;
 export const LOCAL_STORAGE_KEY = "recursive-todo-tasks";
+export const TODAY_SORT_ORDER_KEY = "today-sort-order";
 
 export const priorityColors: Record<string, string> = {
   low: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",

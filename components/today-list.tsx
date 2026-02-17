@@ -3,11 +3,25 @@
 import { useMemo } from "react";
 import { startOfDay } from "date-fns";
 import { CalendarCheck } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
 import type { Task } from "@/lib/types";
-import { cn } from "@/lib/utils";
 import { getTasksForToday, getTodayProgress } from "@/lib/tree-utils";
+import { sortTodayTasks } from "@/lib/today-sort-utils";
+import { useTodaySortOrder } from "@/hooks/use-today-sort-order";
 import { Progress } from "@/components/ui/progress";
-import { TaskRowContent } from "@/components/task-row-content";
+import { TodayTaskItem } from "@/components/today-task-item";
 
 interface TodayListProps {
   tasks: Task[];
@@ -22,16 +36,65 @@ interface TodayListProps {
   onPauseTimer: () => void;
 }
 
-export function TodayList({ tasks, onToggle, onDelete, onEdit, onArchive, onFastForward, activeTimerId, currentElapsedMs, onStartTimer, onPauseTimer }: TodayListProps) {
+export function TodayList({
+  tasks,
+  onToggle,
+  onDelete,
+  onEdit,
+  onArchive,
+  onFastForward,
+  activeTimerId,
+  currentElapsedMs,
+  onStartTimer,
+  onPauseTimer,
+}: TodayListProps) {
+  const { sortOrder, updateSortOrder, cleanupStaleIds } = useTodaySortOrder();
+
   const todayTasks = useMemo(() => {
     const today = startOfDay(new Date());
     return getTasksForToday(tasks, today);
   }, [tasks]);
 
-  const { completedCount, totalCount, percentage: completionPercent } = useMemo(() => {
-    const today = startOfDay(new Date());
-    return getTodayProgress(todayTasks, today);
-  }, [todayTasks]);
+  // Sort tasks and cleanup stale IDs
+  const sortedTodayTasks = useMemo(() => {
+    const sorted = sortTodayTasks(todayTasks, sortOrder);
+
+    // Cleanup: remove IDs that no longer exist in today's tasks
+    const validIds = new Set(todayTasks.map((t) => t.id));
+    const hasStaleIds = sortOrder.some((id) => !validIds.has(id));
+    if (hasStaleIds) {
+      cleanupStaleIds(validIds);
+    }
+
+    return sorted;
+  }, [todayTasks, sortOrder, cleanupStaleIds]);
+
+  const { completedCount, totalCount, percentage: completionPercent } =
+    useMemo(() => {
+      const today = startOfDay(new Date());
+      return getTodayProgress(sortedTodayTasks, today);
+    }, [sortedTodayTasks]);
+
+  const sortedIds = useMemo(
+    () => sortedTodayTasks.map(({ id }) => id),
+    [sortedTodayTasks]
+  );
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    })
+  );
+
+  function handleDragEnd({ active, over }: DragEndEvent) {
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = sortedIds.indexOf(active.id as string);
+    const newIndex = sortedIds.indexOf(over.id as string);
+
+    const newOrder = arrayMove(sortedIds, oldIndex, newIndex);
+    updateSortOrder(newOrder);
+  }
 
   if (todayTasks.length === 0) {
     return (
@@ -66,35 +129,39 @@ export function TodayList({ tasks, onToggle, onDelete, onEdit, onArchive, onFast
         <Progress value={completionPercent} className="h-2" />
       </div>
 
-      {todayTasks.map((task) => {
-        const isTimerActive = task.id === activeTimerId;
-        const displayTimeMs = isTimerActive
-          ? task.timeInvestedMs + currentElapsedMs
-          : task.timeInvestedMs;
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={sortedIds}
+          strategy={verticalListSortingStrategy}
+        >
+          {sortedTodayTasks.map((task) => {
+            const isTimerActive = task.id === activeTimerId;
+            const displayTimeMs = isTimerActive
+              ? task.timeInvestedMs + currentElapsedMs
+              : task.timeInvestedMs;
 
-        return (
-          <div
-            key={task.id}
-            className={cn(
-              "group flex items-center gap-2 rounded-md border border-transparent px-2 py-1.5 hover:border-border hover:bg-accent/50",
-              task.completed && "opacity-60"
-            )}
-          >
-            <TaskRowContent
-              task={task}
-              onToggle={onToggle}
-              onDelete={onDelete}
-              onEdit={onEdit}
-              onArchive={onArchive}
-              onFastForward={onFastForward}
-              isTimerActive={isTimerActive}
-              displayTimeMs={displayTimeMs}
-              onStartTimer={onStartTimer}
-              onPauseTimer={onPauseTimer}
-            />
-          </div>
-        );
-      })}
+            return (
+              <TodayTaskItem
+                key={task.id}
+                task={task}
+                onToggle={onToggle}
+                onDelete={onDelete}
+                onEdit={onEdit}
+                onArchive={onArchive}
+                onFastForward={onFastForward}
+                isTimerActive={isTimerActive}
+                displayTimeMs={displayTimeMs}
+                onStartTimer={onStartTimer}
+                onPauseTimer={onPauseTimer}
+              />
+            );
+          })}
+        </SortableContext>
+      </DndContext>
     </div>
   );
 }
