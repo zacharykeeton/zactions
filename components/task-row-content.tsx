@@ -7,6 +7,7 @@ import {
   Pencil,
   Trash2,
   Calendar,
+  ClipboardPlus,
   Clock,
   Repeat,
   Play,
@@ -127,6 +128,18 @@ export function TaskRowContent({
           {task.priority}
         </Badge>
 
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          <ClipboardPlus className="h-3 w-3" />
+          {format(new Date(task.createdDate), "MMM d")}
+        </span>
+
+        {task.scheduledDate && (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            {format(new Date(task.scheduledDate), "MMM d")}
+          </span>
+        )}
+
         {task.dueDate && (
           <span
             className={cn(
@@ -136,13 +149,6 @@ export function TaskRowContent({
           >
             <Calendar className="h-3 w-3" />
             {format(new Date(task.dueDate), "MMM d")}
-          </span>
-        )}
-
-        {task.scheduledDate && (
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Clock className="h-3 w-3" />
-            {format(new Date(task.scheduledDate), "MMM d")}
           </span>
         )}
 
