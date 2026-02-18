@@ -21,7 +21,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Task, Priority, RecurrencePattern } from "@/lib/types";
-import { TOMORROW_SORT_ORDER_KEY } from "@/lib/constants";
+import {
+  TOMORROW_SORT_ORDER_KEY,
+  TOMORROW_RECURRING_SECTION_KEY,
+  TOMORROW_NON_RECURRING_SECTION_KEY,
+} from "@/lib/constants";
 
 export default function Home() {
   // Eagerly decode the completion sound so it's ready before the first click.
@@ -219,6 +223,8 @@ export default function Home() {
               tasks={tasks}
               date={startOfDay(addDays(new Date(), 1))}
               storageKey={TOMORROW_SORT_ORDER_KEY}
+              recurringSectionKey={TOMORROW_RECURRING_SECTION_KEY}
+              nonRecurringSectionKey={TOMORROW_NON_RECURRING_SECTION_KEY}
               emptyMessage="Nothing scheduled for tomorrow"
               progressLabel="Tomorrow's Progress"
               onToggle={handleToggleWithTimer}

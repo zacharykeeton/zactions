@@ -22,6 +22,7 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import type { Task } from "@/lib/types";
 import {
   flattenTree,
@@ -44,6 +45,42 @@ const dropAnimation = {
     styles: { active: { opacity: "0.4" } },
   }),
 };
+
+const RECURRING_SECTION_KEY = "task-section-recurring-open";
+const NON_RECURRING_SECTION_KEY = "task-section-nonrecurring-open";
+
+function readSectionState(key: string): boolean {
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem(key) !== "false";
+}
+
+interface CollapsibleSectionProps {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+  count: number;
+}
+
+function CollapsibleSection({ title, open, onToggle, children, count }: CollapsibleSectionProps) {
+  return (
+    <div className="mb-2">
+      <button
+        onClick={onToggle}
+        className="flex w-full items-center gap-1.5 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors select-none"
+      >
+        {open ? (
+          <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+        )}
+        {title}
+        <span className="ml-1 text-xs text-muted-foreground/60">({count})</span>
+      </button>
+      {open && <div className="flex flex-col">{children}</div>}
+    </div>
+  );
+}
 
 interface TaskTreeProps {
   tasks: Task[];
@@ -78,20 +115,54 @@ export function TaskTree({
   const [overId, setOverId] = useState<UniqueIdentifier | null>(null);
   const [offsetLeft, setOffsetLeft] = useState(0);
 
-  const flattenedItems = useMemo(() => flattenTree(tasks), [tasks]);
-  const sortedIds = useMemo(
-    () => flattenedItems.map(({ id }) => id),
-    [flattenedItems]
+  const [recurringOpen, setRecurringOpen] = useState(() => readSectionState(RECURRING_SECTION_KEY));
+  const [nonRecurringOpen, setNonRecurringOpen] = useState(() => readSectionState(NON_RECURRING_SECTION_KEY));
+
+  function toggleRecurring() {
+    setRecurringOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem(RECURRING_SECTION_KEY, String(next));
+      return next;
+    });
+  }
+
+  function toggleNonRecurring() {
+    setNonRecurringOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem(NON_RECURRING_SECTION_KEY, String(next));
+      return next;
+    });
+  }
+
+  const recurringTasks = useMemo(() => tasks.filter((t) => !!t.recurrence), [tasks]);
+  const nonRecurringTasks = useMemo(() => tasks.filter((t) => !t.recurrence), [tasks]);
+
+  const flattenedRecurring = useMemo(() => flattenTree(recurringTasks), [recurringTasks]);
+  const flattenedNonRecurring = useMemo(() => flattenTree(nonRecurringTasks), [nonRecurringTasks]);
+
+  const recurringIds = useMemo(() => flattenedRecurring.map(({ id }) => id), [flattenedRecurring]);
+  const nonRecurringIds = useMemo(() => flattenedNonRecurring.map(({ id }) => id), [flattenedNonRecurring]);
+
+  // Combined flattened list is only used for finding the active item for DragOverlay
+  const allFlattenedItems = useMemo(
+    () => [...flattenedRecurring, ...flattenedNonRecurring],
+    [flattenedRecurring, flattenedNonRecurring]
   );
 
-  const activeItem = activeId
-    ? flattenedItems.find(({ id }) => id === activeId)
-    : null;
+  const activeItem = activeId ? allFlattenedItems.find(({ id }) => id === activeId) : null;
+
+  // Determine which group the active item belongs to
+  const activeIsRecurring = activeId
+    ? recurringIds.includes(activeId as string)
+    : false;
+
+  const activeFlattenedItems = activeIsRecurring ? flattenedRecurring : flattenedNonRecurring;
+  const activeGroupTasks = activeIsRecurring ? recurringTasks : nonRecurringTasks;
 
   const projected =
     activeId && overId
       ? getProjection(
-          flattenedItems,
+          activeFlattenedItems,
           activeId as string,
           overId as string,
           offsetLeft,
@@ -130,12 +201,14 @@ export function TaskTree({
       const parent = findItemDeep(tasks, parentId);
       if (parent?.recurrence) return;
     }
-    const clonedItems = flattenTree(tasks);
 
+    const clonedItems = flattenTree(activeGroupTasks);
     const activeIndex = clonedItems.findIndex(({ id }) => id === active.id);
     const overIndex = clonedItems.findIndex(({ id }) => id === over.id);
 
-    // Update the active item with projected depth/parent
+    // If the over item is not in the same group, cancel
+    if (overIndex === -1) return;
+
     clonedItems[activeIndex] = {
       ...clonedItems[activeIndex],
       depth,
@@ -143,7 +216,12 @@ export function TaskTree({
     };
 
     const sortedItems = arrayMove(clonedItems, activeIndex, overIndex);
-    const newTree = buildTree(sortedItems);
+    const newGroupTree = buildTree(sortedItems);
+
+    const newTree = activeIsRecurring
+      ? [...newGroupTree, ...nonRecurringTasks]
+      : [...recurringTasks, ...newGroupTree];
+
     onReorder(newTree);
   }
 
@@ -157,6 +235,35 @@ export function TaskTree({
     setOffsetLeft(0);
   }
 
+  function renderTaskItem(task: (typeof allFlattenedItems)[number]) {
+    return (
+      <TaskItem
+        key={task.id}
+        task={task}
+        depth={
+          task.id === (activeId as string) && projected
+            ? projected.depth
+            : task.depth
+        }
+        indentationWidth={INDENTATION_WIDTH}
+        onToggle={onToggle}
+        onDelete={onDelete}
+        onEdit={onEdit}
+        onAddSubtask={onAddSubtask}
+        onArchive={onArchive}
+        onFastForward={onFastForward}
+        isTimerActive={task.id === activeTimerId}
+        displayTimeMs={
+          task.id === activeTimerId
+            ? task.timeInvestedMs + currentElapsedMs
+            : task.timeInvestedMs
+        }
+        onStartTimer={onStartTimer}
+        onPauseTimer={onPauseTimer}
+      />
+    );
+  }
+
   return (
     <DndContext
       sensors={sensors}
@@ -168,39 +275,28 @@ export function TaskTree({
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <SortableContext
-        items={sortedIds}
-        strategy={verticalListSortingStrategy}
+      <CollapsibleSection
+        title="Recurring"
+        open={recurringOpen}
+        onToggle={toggleRecurring}
+        count={recurringTasks.length}
       >
-        <div className="flex flex-col">
-          {flattenedItems.map((task) => (
-            <TaskItem
-              key={task.id}
-              task={task}
-              depth={
-                task.id === (activeId as string) && projected
-                  ? projected.depth
-                  : task.depth
-              }
-              indentationWidth={INDENTATION_WIDTH}
-              onToggle={onToggle}
-              onDelete={onDelete}
-              onEdit={onEdit}
-              onAddSubtask={onAddSubtask}
-              onArchive={onArchive}
-              onFastForward={onFastForward}
-              isTimerActive={task.id === activeTimerId}
-              displayTimeMs={
-                task.id === activeTimerId
-                  ? task.timeInvestedMs + currentElapsedMs
-                  : task.timeInvestedMs
-              }
-              onStartTimer={onStartTimer}
-              onPauseTimer={onPauseTimer}
-            />
-          ))}
-        </div>
-      </SortableContext>
+        <SortableContext items={recurringIds} strategy={verticalListSortingStrategy}>
+          {flattenedRecurring.map(renderTaskItem)}
+        </SortableContext>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Non-Recurring"
+        open={nonRecurringOpen}
+        onToggle={toggleNonRecurring}
+        count={nonRecurringTasks.length}
+      >
+        <SortableContext items={nonRecurringIds} strategy={verticalListSortingStrategy}>
+          {flattenedNonRecurring.map(renderTaskItem)}
+        </SortableContext>
+      </CollapsibleSection>
+
       <DragOverlay dropAnimation={dropAnimation}>
         {activeId && activeItem ? (
           <TaskItemOverlay

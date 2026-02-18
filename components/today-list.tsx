@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { startOfDay } from "date-fns";
-import { CalendarCheck } from "lucide-react";
+import { CalendarCheck, ChevronDown, ChevronRight } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -20,14 +20,53 @@ import type { Task } from "@/lib/types";
 import { getTasksForToday, getTodayProgress } from "@/lib/tree-utils";
 import { sortTodayTasks } from "@/lib/today-sort-utils";
 import { useTodaySortOrder } from "@/hooks/use-today-sort-order";
-import { TODAY_SORT_ORDER_KEY } from "@/lib/constants";
+import {
+  TODAY_SORT_ORDER_KEY,
+  TODAY_RECURRING_SECTION_KEY,
+  TODAY_NON_RECURRING_SECTION_KEY,
+} from "@/lib/constants";
 import { Progress } from "@/components/ui/progress";
 import { TodayTaskItem } from "@/components/today-task-item";
+
+function readSectionState(key: string): boolean {
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem(key) !== "false";
+}
+
+interface CollapsibleSectionProps {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+  count: number;
+}
+
+function CollapsibleSection({ title, open, onToggle, children, count }: CollapsibleSectionProps) {
+  return (
+    <div className="mb-2">
+      <button
+        onClick={onToggle}
+        className="flex w-full items-center gap-1.5 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors select-none"
+      >
+        {open ? (
+          <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+        )}
+        {title}
+        <span className="ml-1 text-xs text-muted-foreground/60">({count})</span>
+      </button>
+      {open && <div className="flex flex-col">{children}</div>}
+    </div>
+  );
+}
 
 interface TodayListProps {
   tasks: Task[];
   date?: Date;
   storageKey?: string;
+  recurringSectionKey?: string;
+  nonRecurringSectionKey?: string;
   emptyMessage?: string;
   progressLabel?: string;
   onToggle: (id: string) => void;
@@ -46,6 +85,8 @@ export function TodayList({
   tasks,
   date,
   storageKey = TODAY_SORT_ORDER_KEY,
+  recurringSectionKey = TODAY_RECURRING_SECTION_KEY,
+  nonRecurringSectionKey = TODAY_NON_RECURRING_SECTION_KEY,
   emptyMessage = "Nothing scheduled for today",
   progressLabel = "Today's Progress",
   onToggle,
@@ -63,17 +104,13 @@ export function TodayList({
 
   const targetDate = useMemo(() => date ?? startOfDay(new Date()), [date]);
 
-  const todayTasks = useMemo(() => {
-    return getTasksForToday(tasks, targetDate);
-  }, [tasks, targetDate]);
+  const todayTasks = useMemo(() => getTasksForToday(tasks, targetDate), [tasks, targetDate]);
 
-  // Sort tasks using the persisted sort order
   const sortedTodayTasks = useMemo(
     () => sortTodayTasks(todayTasks, sortOrder),
     [todayTasks, sortOrder]
   );
 
-  // Cleanup stale IDs in a proper effect (not inside useMemo)
   useEffect(() => {
     if (todayTasks.length === 0 || sortOrder.length === 0) return;
     const validIds = new Set(todayTasks.map((t) => t.id));
@@ -83,15 +120,45 @@ export function TodayList({
     }
   }, [todayTasks, sortOrder, cleanupStaleIds]);
 
-  const { completedCount, totalCount, percentage: completionPercent } =
-    useMemo(() => {
-      return getTodayProgress(sortedTodayTasks, targetDate);
-    }, [sortedTodayTasks, targetDate]);
+  const { completedCount, totalCount, percentage: completionPercent } = useMemo(
+    () => getTodayProgress(sortedTodayTasks, targetDate),
+    [sortedTodayTasks, targetDate]
+  );
 
-  const sortedIds = useMemo(
-    () => sortedTodayTasks.map(({ id }) => id),
+  // Split into recurring / non-recurring after sort order is applied
+  const recurringTasks = useMemo(
+    () => sortedTodayTasks.filter((t) => !!t.recurrence),
     [sortedTodayTasks]
   );
+  const nonRecurringTasks = useMemo(
+    () => sortedTodayTasks.filter((t) => !t.recurrence),
+    [sortedTodayTasks]
+  );
+
+  const recurringIds = useMemo(() => recurringTasks.map((t) => t.id), [recurringTasks]);
+  const nonRecurringIds = useMemo(() => nonRecurringTasks.map((t) => t.id), [nonRecurringTasks]);
+
+  // Combined sorted IDs (used for arrayMove index lookups)
+  const sortedIds = useMemo(() => sortedTodayTasks.map(({ id }) => id), [sortedTodayTasks]);
+
+  const [recurringOpen, setRecurringOpen] = useState(() => readSectionState(recurringSectionKey));
+  const [nonRecurringOpen, setNonRecurringOpen] = useState(() => readSectionState(nonRecurringSectionKey));
+
+  function toggleRecurring() {
+    setRecurringOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem(recurringSectionKey, String(next));
+      return next;
+    });
+  }
+
+  function toggleNonRecurring() {
+    setNonRecurringOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem(nonRecurringSectionKey, String(next));
+      return next;
+    });
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -101,6 +168,11 @@ export function TodayList({
 
   function handleDragEnd({ active, over }: DragEndEvent) {
     if (!over || active.id === over.id) return;
+
+    // Reject cross-group drops
+    const activeIsRecurring = recurringIds.includes(active.id as string);
+    const overIsRecurring = recurringIds.includes(over.id as string);
+    if (activeIsRecurring !== overIsRecurring) return;
 
     const oldIndex = sortedIds.indexOf(active.id as string);
     const newIndex = sortedIds.indexOf(over.id as string);
@@ -120,6 +192,30 @@ export function TodayList({
           </p>
         </div>
       </div>
+    );
+  }
+
+  function renderTaskItem(task: Task) {
+    const isTimerActive = task.id === activeTimerId;
+    const displayTimeMs = isTimerActive
+      ? task.timeInvestedMs + currentElapsedMs
+      : task.timeInvestedMs;
+
+    return (
+      <TodayTaskItem
+        key={task.id}
+        task={task}
+        onToggle={onToggle}
+        onDelete={onDelete}
+        onEdit={onEdit}
+        onArchive={onArchive}
+        onFastForward={onFastForward}
+        onSkipToday={onSkipToday}
+        isTimerActive={isTimerActive}
+        displayTimeMs={displayTimeMs}
+        onStartTimer={onStartTimer}
+        onPauseTimer={onPauseTimer}
+      />
     );
   }
 
@@ -147,34 +243,27 @@ export function TodayList({
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
-        <SortableContext
-          items={sortedIds}
-          strategy={verticalListSortingStrategy}
+        <CollapsibleSection
+          title="Recurring"
+          open={recurringOpen}
+          onToggle={toggleRecurring}
+          count={recurringTasks.length}
         >
-          {sortedTodayTasks.map((task) => {
-            const isTimerActive = task.id === activeTimerId;
-            const displayTimeMs = isTimerActive
-              ? task.timeInvestedMs + currentElapsedMs
-              : task.timeInvestedMs;
+          <SortableContext items={recurringIds} strategy={verticalListSortingStrategy}>
+            {recurringTasks.map(renderTaskItem)}
+          </SortableContext>
+        </CollapsibleSection>
 
-            return (
-              <TodayTaskItem
-                key={task.id}
-                task={task}
-                onToggle={onToggle}
-                onDelete={onDelete}
-                onEdit={onEdit}
-                onArchive={onArchive}
-                onFastForward={onFastForward}
-                onSkipToday={onSkipToday}
-                isTimerActive={isTimerActive}
-                displayTimeMs={displayTimeMs}
-                onStartTimer={onStartTimer}
-                onPauseTimer={onPauseTimer}
-              />
-            );
-          })}
-        </SortableContext>
+        <CollapsibleSection
+          title="Non-Recurring"
+          open={nonRecurringOpen}
+          onToggle={toggleNonRecurring}
+          count={nonRecurringTasks.length}
+        >
+          <SortableContext items={nonRecurringIds} strategy={verticalListSortingStrategy}>
+            {nonRecurringTasks.map(renderTaskItem)}
+          </SortableContext>
+        </CollapsibleSection>
       </DndContext>
     </div>
   );
