@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { ArchiveRestore, Archive, Trash2 } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { ArchiveRestore, Archive, Trash2, ClipboardPlus, Clock, Calendar, CheckCheck } from "lucide-react";
 import type { Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { collectArchivedTasks } from "@/lib/tree-utils";
@@ -80,6 +81,32 @@ function ArchivedTaskRow({
         >
           {task.priority}
         </Badge>
+
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          <ClipboardPlus className="h-3 w-3" />
+          {format(new Date(task.createdDate), "MMM d")}
+        </span>
+
+        {task.scheduledDate && (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            {format(parseISO(task.scheduledDate), "MMM d")}
+          </span>
+        )}
+
+        {task.dueDate && (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Calendar className="h-3 w-3" />
+            {format(parseISO(task.dueDate), "MMM d")}
+          </span>
+        )}
+
+        {task.completed && task.completedDate && (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <CheckCheck className="h-3 w-3" />
+            {format(parseISO(task.completedDate), "MMM d")}
+          </span>
+        )}
 
         {childCount > 0 && (
           <span className="text-xs text-muted-foreground">
