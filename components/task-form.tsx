@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { CalendarIcon, Repeat, X } from "lucide-react";
 import type { Task, Priority, RecurrenceInterval, DayOfWeek, RecurrencePattern } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -48,10 +48,10 @@ export function TaskForm({
     initialData?.priority ?? "medium"
   );
   const [dueDate, setDueDate] = useState<Date | undefined>(
-    initialData?.dueDate ? new Date(initialData.dueDate) : undefined
+    initialData?.dueDate ? parseISO(initialData.dueDate) : undefined
   );
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>(
-    initialData?.scheduledDate ? new Date(initialData.scheduledDate) : undefined
+    initialData?.scheduledDate ? parseISO(initialData.scheduledDate) : undefined
   );
   const [dueDateOpen, setDueDateOpen] = useState(false);
   const [scheduledDateOpen, setScheduledDateOpen] = useState(false);
@@ -90,8 +90,8 @@ export function TaskForm({
     onSubmit({
       title: title.trim(),
       priority,
-      dueDate: dueDate ? dueDate.toISOString() : null,
-      scheduledDate: scheduledDate ? scheduledDate.toISOString() : null,
+      dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : null,
+      scheduledDate: scheduledDate ? format(scheduledDate, "yyyy-MM-dd") : null,
       parentId,
       recurrence,
     });

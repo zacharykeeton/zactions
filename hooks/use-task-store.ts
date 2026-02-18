@@ -253,25 +253,28 @@ export function useTaskStore() {
       const task = findItemDeep(prev, id);
       if (!task) return prev;
 
-      const todayStr = new Date().toISOString().split("T")[0];
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const localDateStr = (d: Date) =>
+        `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const todayStr = localDateStr(new Date());
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowStr = tomorrow.toISOString().split("T")[0];
+      const tomorrowStr = localDateStr(tomorrow);
 
-      const dueIsToday =
-        task.dueDate && task.dueDate.split("T")[0] === todayStr;
-      const scheduledIsToday =
-        task.scheduledDate && task.scheduledDate.split("T")[0] === todayStr;
+      const dueShouldSkip =
+        task.dueDate && task.dueDate.split("T")[0] <= todayStr;
+      const scheduledShouldSkip =
+        task.scheduledDate && task.scheduledDate.split("T")[0] <= todayStr;
 
-      if (!dueIsToday && !scheduledIsToday) return prev;
+      if (!dueShouldSkip && !scheduledShouldSkip) return prev;
 
       const update = (items: Task[]): Task[] =>
         items.map((item) => {
           if (item.id === id) {
             return {
               ...item,
-              ...(dueIsToday && { dueDate: tomorrowStr }),
-              ...(scheduledIsToday && { scheduledDate: tomorrowStr }),
+              ...(dueShouldSkip && { dueDate: tomorrowStr }),
+              ...(scheduledShouldSkip && { scheduledDate: tomorrowStr }),
             };
           }
           if (item.children.length > 0)

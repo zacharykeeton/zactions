@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef } from "react";
-import { format, isPast, isToday } from "date-fns";
+import { format, isPast, isToday, parseISO } from "date-fns";
 import {
   Plus,
   Pencil,
@@ -79,17 +79,17 @@ export function TaskRowContent({
   const isOverdue =
     task.dueDate &&
     !task.completed &&
-    isPast(new Date(task.dueDate)) &&
-    !isToday(new Date(task.dueDate));
+    isPast(parseISO(task.dueDate)) &&
+    !isToday(parseISO(task.dueDate));
 
   const showFastForward =
     task.recurrence && isOverdue && onFastForward;
 
-  const isDueToday =
-    task.dueDate && !task.completed && isToday(new Date(task.dueDate));
-  const isScheduledToday =
-    task.scheduledDate && !task.completed && isToday(new Date(task.scheduledDate));
-  const showSkipToday = onSkipToday && (isDueToday || isScheduledToday);
+  const isDueScheduledOrOverdue =
+    !task.completed &&
+    ((task.dueDate && (isToday(parseISO(task.dueDate)) || isPast(parseISO(task.dueDate)))) ||
+      (task.scheduledDate && (isToday(parseISO(task.scheduledDate)) || isPast(parseISO(task.scheduledDate)))));
+  const showSkipToday = onSkipToday && isDueScheduledOrOverdue;
 
   return (
     <>
@@ -145,7 +145,7 @@ export function TaskRowContent({
         {task.scheduledDate && (
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" />
-            {format(new Date(task.scheduledDate), "MMM d")}
+            {format(parseISO(task.scheduledDate), "MMM d")}
           </span>
         )}
 
@@ -157,7 +157,7 @@ export function TaskRowContent({
             )}
           >
             <Calendar className="h-3 w-3" />
-            {format(new Date(task.dueDate), "MMM d")}
+            {format(parseISO(task.dueDate), "MMM d")}
           </span>
         )}
 

@@ -3,7 +3,7 @@
 import { type CSSProperties, forwardRef } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { isPast, isToday } from "date-fns";
+import { isPast, isToday, parseISO } from "date-fns";
 import { GripVertical } from "lucide-react";
 import { priorityColors } from "@/lib/constants";
 import type { FlattenedTask, Task } from "@/lib/types";
@@ -63,24 +63,24 @@ export function TaskItem({
   const isDueToday =
     task.dueDate &&
     !task.completed &&
-    isToday(new Date(task.dueDate));
+    isToday(parseISO(task.dueDate));
 
   const isScheduledToday =
     task.scheduledDate &&
     !task.completed &&
-    isToday(new Date(task.scheduledDate));
+    isToday(parseISO(task.scheduledDate));
 
   const isDueOverdue =
     task.dueDate &&
     !task.completed &&
-    isPast(new Date(task.dueDate)) &&
-    !isToday(new Date(task.dueDate));
+    isPast(parseISO(task.dueDate)) &&
+    !isToday(parseISO(task.dueDate));
 
   const isScheduledOverdue =
     task.scheduledDate &&
     !task.completed &&
-    isPast(new Date(task.scheduledDate)) &&
-    !isToday(new Date(task.scheduledDate));
+    isPast(parseISO(task.scheduledDate)) &&
+    !isToday(parseISO(task.scheduledDate));
 
   const shouldShowTodayBackground = isDueToday || isScheduledToday;
   const shouldShowOverdueBackground = isDueOverdue || isScheduledOverdue;

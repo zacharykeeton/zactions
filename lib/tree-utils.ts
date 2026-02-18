@@ -1,5 +1,5 @@
 import { arrayMove } from "@dnd-kit/sortable";
-import { isSameDay, isBefore } from "date-fns";
+import { isSameDay, isBefore, parseISO } from "date-fns";
 import type { Task, FlattenedTask } from "./types";
 
 function flatten(
@@ -172,10 +172,10 @@ export function getTasksForToday(tasks: Task[], today: Date): Task[] {
   function collect(items: Task[]) {
     for (const task of items) {
       if (task.archived) continue;
-      const isDueToday = task.dueDate && isSameDay(new Date(task.dueDate), today);
-      const isScheduledToday = task.scheduledDate && isSameDay(new Date(task.scheduledDate), today);
-      const isPastDue = task.dueDate && !task.completed && isBefore(new Date(task.dueDate), today);
-      const isPastScheduled = task.scheduledDate && !task.completed && isBefore(new Date(task.scheduledDate), today);
+      const isDueToday = task.dueDate && isSameDay(parseISO(task.dueDate), today);
+      const isScheduledToday = task.scheduledDate && isSameDay(parseISO(task.scheduledDate), today);
+      const isPastDue = task.dueDate && !task.completed && isBefore(parseISO(task.dueDate), today);
+      const isPastScheduled = task.scheduledDate && !task.completed && isBefore(parseISO(task.scheduledDate), today);
       if (isDueToday || isScheduledToday || isPastDue || isPastScheduled) {
         results.push({ ...task, children: [] });
       }
@@ -197,7 +197,7 @@ export function wasCompletedToday(task: Task, today: Date): boolean {
 
   if (task.completionHistory && task.completionHistory.length > 0) {
     return task.completionHistory.some((record) =>
-      isSameDay(new Date(record.completedAt), today)
+      isSameDay(parseISO(record.completedAt), today)
     );
   }
 
@@ -220,10 +220,10 @@ export function wasCompletedForToday(task: Task, today: Date): boolean {
   if (task.completionHistory && task.completionHistory.length > 0) {
     return task.completionHistory.some((record) => {
       if (record.dueDate === null) {
-        return isSameDay(new Date(record.completedAt), today);
+        return isSameDay(parseISO(record.completedAt), today);
       }
-      if (isSameDay(new Date(record.dueDate), today)) return true;
-      if (record.scheduledDate && isSameDay(new Date(record.scheduledDate), today)) return true;
+      if (isSameDay(parseISO(record.dueDate), today)) return true;
+      if (record.scheduledDate && isSameDay(parseISO(record.scheduledDate), today)) return true;
       return false;
     });
   }
