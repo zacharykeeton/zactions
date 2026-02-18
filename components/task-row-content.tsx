@@ -15,6 +15,7 @@ import {
   Archive,
   FastForward,
   SkipForward,
+  CheckCheck,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { formatRecurrencePattern } from "@/lib/recurrence-utils";
@@ -158,6 +159,13 @@ export function TaskRowContent({
           >
             <Calendar className="h-3 w-3" />
             {format(parseISO(task.dueDate), "MMM d")}
+          </span>
+        )}
+
+        {task.completed && task.completedDate && (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <CheckCheck className="h-3 w-3" />
+            {format(parseISO(task.completedDate), "MMM d")}
           </span>
         )}
 
