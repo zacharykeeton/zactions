@@ -4,7 +4,7 @@ import { type CSSProperties, forwardRef } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { isPast, isToday, parseISO } from "date-fns";
-import { GripVertical } from "lucide-react";
+import { ChevronDown, ChevronRight, GripVertical } from "lucide-react";
 import { priorityColors } from "@/lib/constants";
 import type { FlattenedTask, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,9 @@ interface TaskItemProps {
   displayTimeMs: number;
   onStartTimer: (taskId: string) => void;
   onPauseTimer: () => void;
+  hasChildren?: boolean;
+  isCollapsed?: boolean;
+  onToggleCollapse?: (id: string) => void;
 }
 
 export function TaskItem({
@@ -42,6 +45,9 @@ export function TaskItem({
   displayTimeMs,
   onStartTimer,
   onPauseTimer,
+  hasChildren,
+  isCollapsed,
+  onToggleCollapse,
 }: TaskItemProps) {
   const {
     attributes,
@@ -106,6 +112,22 @@ export function TaskItem({
       >
         <GripVertical className="h-4 w-4" />
       </button>
+
+      {hasChildren ? (
+        <button
+          onClick={() => onToggleCollapse?.(task.id)}
+          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+          aria-label={isCollapsed ? "Expand subtasks" : "Collapse subtasks"}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5" />
+          )}
+        </button>
+      ) : (
+        <span className="w-3.5 shrink-0" />
+      )}
 
       <TaskRowContent
         task={task}

@@ -23,7 +23,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import type { Task } from "@/lib/types";
+import type { Task, FlattenedTask } from "@/lib/types";
 import {
   flattenTree,
   buildTree,
@@ -31,7 +31,7 @@ import {
   getChildCount,
   findItemDeep,
 } from "@/lib/tree-utils";
-import { INDENTATION_WIDTH } from "@/lib/constants";
+import { INDENTATION_WIDTH, COLLAPSED_TASKS_KEY } from "@/lib/constants";
 import { TaskItem, TaskItemOverlay } from "./task-item";
 
 const measuring = {
@@ -48,6 +48,25 @@ const dropAnimation = {
 
 const RECURRING_SECTION_KEY = "task-section-recurring-open";
 const NON_RECURRING_SECTION_KEY = "task-section-nonrecurring-open";
+
+/** Remove descendants of collapsed tasks from a flattened list. */
+function filterCollapsed(items: FlattenedTask[], collapsedIds: Set<string>): FlattenedTask[] {
+  const result: FlattenedTask[] = [];
+  let skipDepth: number | null = null;
+
+  for (const item of items) {
+    if (skipDepth !== null) {
+      if (item.depth > skipDepth) continue;
+      skipDepth = null;
+    }
+    result.push(item);
+    if (collapsedIds.has(item.id) && item.children.length > 0) {
+      skipDepth = item.depth;
+    }
+  }
+
+  return result;
+}
 
 function readSectionState(key: string): boolean {
   if (typeof window === "undefined") return true;
@@ -115,6 +134,29 @@ export function TaskTree({
   const [overId, setOverId] = useState<UniqueIdentifier | null>(null);
   const [offsetLeft, setOffsetLeft] = useState(0);
 
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const stored = localStorage.getItem(COLLAPSED_TASKS_KEY);
+      return stored ? new Set(JSON.parse(stored) as string[]) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  function toggleCollapsed(id: string) {
+    setCollapsedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      localStorage.setItem(COLLAPSED_TASKS_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }
+
   const [recurringOpen, setRecurringOpen] = useState(() => readSectionState(RECURRING_SECTION_KEY));
   const [nonRecurringOpen, setNonRecurringOpen] = useState(() => readSectionState(NON_RECURRING_SECTION_KEY));
 
@@ -137,23 +179,27 @@ export function TaskTree({
   const recurringTasks = useMemo(() => tasks.filter((t) => !!t.recurrence), [tasks]);
   const nonRecurringTasks = useMemo(() => tasks.filter((t) => !t.recurrence), [tasks]);
 
-  const flattenedRecurring = useMemo(() => flattenTree(recurringTasks), [recurringTasks]);
-  const flattenedNonRecurring = useMemo(() => flattenTree(nonRecurringTasks), [nonRecurringTasks]);
+  const fullFlattenedRecurring = useMemo(() => flattenTree(recurringTasks), [recurringTasks]);
+  const fullFlattenedNonRecurring = useMemo(() => flattenTree(nonRecurringTasks), [nonRecurringTasks]);
+
+  // Filter out children of collapsed tasks for rendering, but keep full lists for DnD projection
+  const flattenedRecurring = useMemo(() => filterCollapsed(fullFlattenedRecurring, collapsedIds), [fullFlattenedRecurring, collapsedIds]);
+  const flattenedNonRecurring = useMemo(() => filterCollapsed(fullFlattenedNonRecurring, collapsedIds), [fullFlattenedNonRecurring, collapsedIds]);
 
   const recurringIds = useMemo(() => flattenedRecurring.map(({ id }) => id), [flattenedRecurring]);
   const nonRecurringIds = useMemo(() => flattenedNonRecurring.map(({ id }) => id), [flattenedNonRecurring]);
 
-  // Combined flattened list is only used for finding the active item for DragOverlay
-  const allFlattenedItems = useMemo(
-    () => [...flattenedRecurring, ...flattenedNonRecurring],
-    [flattenedRecurring, flattenedNonRecurring]
+  // Full (unfiltered) flattened lists used for DragOverlay lookup and DnD projection
+  const allFullFlattenedItems = useMemo(
+    () => [...fullFlattenedRecurring, ...fullFlattenedNonRecurring],
+    [fullFlattenedRecurring, fullFlattenedNonRecurring]
   );
 
-  const activeItem = activeId ? allFlattenedItems.find(({ id }) => id === activeId) : null;
+  const activeItem = activeId ? allFullFlattenedItems.find(({ id }) => id === activeId) : null;
 
   // Determine which group the active item belongs to
   const activeIsRecurring = activeId
-    ? recurringIds.includes(activeId as string)
+    ? fullFlattenedRecurring.some(({ id }) => id === activeId)
     : false;
 
   const activeFlattenedItems = activeIsRecurring ? flattenedRecurring : flattenedNonRecurring;
@@ -235,7 +281,7 @@ export function TaskTree({
     setOffsetLeft(0);
   }
 
-  function renderTaskItem(task: (typeof allFlattenedItems)[number]) {
+  function renderTaskItem(task: (typeof allFullFlattenedItems)[number]) {
     return (
       <TaskItem
         key={task.id}
@@ -260,6 +306,9 @@ export function TaskTree({
         }
         onStartTimer={onStartTimer}
         onPauseTimer={onPauseTimer}
+        hasChildren={task.children.length > 0}
+        isCollapsed={collapsedIds.has(task.id)}
+        onToggleCollapse={toggleCollapsed}
       />
     );
   }

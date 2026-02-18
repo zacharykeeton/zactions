@@ -7,6 +7,7 @@ export const TODAY_RECURRING_SECTION_KEY = "today-section-recurring-open";
 export const TODAY_NON_RECURRING_SECTION_KEY = "today-section-nonrecurring-open";
 export const TOMORROW_RECURRING_SECTION_KEY = "tomorrow-section-recurring-open";
 export const TOMORROW_NON_RECURRING_SECTION_KEY = "tomorrow-section-nonrecurring-open";
+export const COLLAPSED_TASKS_KEY = "collapsed-task-ids";
 
 export const priorityColors: Record<string, string> = {
   low: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",
