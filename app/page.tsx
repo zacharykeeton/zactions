@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { ListTodo, Plus, CalendarCheck, Archive } from "lucide-react";
+import { startOfDay, addDays } from "date-fns";
+import { ListTodo, Plus, CalendarCheck, Archive, CalendarClock } from "lucide-react";
 import { preloadCompletionSound } from "@/lib/completion-sound";
 import { useTaskStore } from "@/hooks/use-task-store";
 import { useTimer } from "@/hooks/use-timer";
@@ -20,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Task, Priority, RecurrencePattern } from "@/lib/types";
+import { TOMORROW_SORT_ORDER_KEY } from "@/lib/constants";
 
 export default function Home() {
   // Eagerly decode the completion sound so it's ready before the first click.
@@ -153,6 +155,10 @@ export default function Home() {
               <CalendarCheck className="mr-2 h-4 w-4" />
               Today
             </TabsTrigger>
+            <TabsTrigger value="tomorrow">
+              <CalendarClock className="mr-2 h-4 w-4" />
+              Tomorrow
+            </TabsTrigger>
             <TabsTrigger value="archived">
               <Archive className="mr-2 h-4 w-4" />
               Archived
@@ -201,6 +207,25 @@ export default function Home() {
               onArchive={handleArchiveWithTimer}
               onFastForward={fastForwardTask}
               onSkipToday={skipTodayTask}
+              activeTimerId={activeTimerId}
+              currentElapsedMs={currentElapsedMs}
+              onStartTimer={startTimer}
+              onPauseTimer={pauseTimer}
+            />
+          </TabsContent>
+
+          <TabsContent value="tomorrow">
+            <TodayList
+              tasks={tasks}
+              date={startOfDay(addDays(new Date(), 1))}
+              storageKey={TOMORROW_SORT_ORDER_KEY}
+              emptyMessage="Nothing scheduled for tomorrow"
+              progressLabel="Tomorrow's Progress"
+              onToggle={handleToggleWithTimer}
+              onDelete={handleDeleteWithTimer}
+              onEdit={handleEdit}
+              onArchive={handleArchiveWithTimer}
+              onFastForward={fastForwardTask}
               activeTimerId={activeTimerId}
               currentElapsedMs={currentElapsedMs}
               onStartTimer={startTimer}

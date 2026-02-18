@@ -20,11 +20,16 @@ import type { Task } from "@/lib/types";
 import { getTasksForToday, getTodayProgress } from "@/lib/tree-utils";
 import { sortTodayTasks } from "@/lib/today-sort-utils";
 import { useTodaySortOrder } from "@/hooks/use-today-sort-order";
+import { TODAY_SORT_ORDER_KEY } from "@/lib/constants";
 import { Progress } from "@/components/ui/progress";
 import { TodayTaskItem } from "@/components/today-task-item";
 
 interface TodayListProps {
   tasks: Task[];
+  date?: Date;
+  storageKey?: string;
+  emptyMessage?: string;
+  progressLabel?: string;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onEdit: (task: Task) => void;
@@ -39,6 +44,10 @@ interface TodayListProps {
 
 export function TodayList({
   tasks,
+  date,
+  storageKey = TODAY_SORT_ORDER_KEY,
+  emptyMessage = "Nothing scheduled for today",
+  progressLabel = "Today's Progress",
   onToggle,
   onDelete,
   onEdit,
@@ -50,12 +59,13 @@ export function TodayList({
   onStartTimer,
   onPauseTimer,
 }: TodayListProps) {
-  const { sortOrder, updateSortOrder, cleanupStaleIds } = useTodaySortOrder();
+  const { sortOrder, updateSortOrder, cleanupStaleIds } = useTodaySortOrder(storageKey);
+
+  const targetDate = useMemo(() => date ?? startOfDay(new Date()), [date]);
 
   const todayTasks = useMemo(() => {
-    const today = startOfDay(new Date());
-    return getTasksForToday(tasks, today);
-  }, [tasks]);
+    return getTasksForToday(tasks, targetDate);
+  }, [tasks, targetDate]);
 
   // Sort tasks using the persisted sort order
   const sortedTodayTasks = useMemo(
@@ -75,9 +85,8 @@ export function TodayList({
 
   const { completedCount, totalCount, percentage: completionPercent } =
     useMemo(() => {
-      const today = startOfDay(new Date());
-      return getTodayProgress(sortedTodayTasks, today);
-    }, [sortedTodayTasks]);
+      return getTodayProgress(sortedTodayTasks, targetDate);
+    }, [sortedTodayTasks, targetDate]);
 
   const sortedIds = useMemo(
     () => sortedTodayTasks.map(({ id }) => id),
@@ -105,9 +114,9 @@ export function TodayList({
       <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed py-16">
         <CalendarCheck className="h-12 w-12 text-muted-foreground" />
         <div className="text-center">
-          <p className="text-lg font-medium">Nothing scheduled for today</p>
+          <p className="text-lg font-medium">{emptyMessage}</p>
           <p className="text-sm text-muted-foreground">
-            Tasks with today&apos;s due date or scheduled date will appear here
+            Tasks with a matching due date or scheduled date will appear here
           </p>
         </div>
       </div>
@@ -119,7 +128,7 @@ export function TodayList({
       <div className="mb-4 rounded-lg border bg-card p-4">
         <div className="mb-2 flex items-baseline justify-between">
           <span className="text-sm font-medium text-muted-foreground">
-            Today&apos;s Progress
+            {progressLabel}
           </span>
           <div className="flex items-baseline gap-1.5">
             <span className="text-2xl font-bold tracking-tight">

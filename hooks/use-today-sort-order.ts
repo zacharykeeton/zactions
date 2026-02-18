@@ -3,12 +3,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { TODAY_SORT_ORDER_KEY } from "@/lib/constants";
 
-export function useTodaySortOrder() {
+export function useTodaySortOrder(storageKey: string = TODAY_SORT_ORDER_KEY) {
   const [sortOrder, setSortOrder] = useState<string[]>([]);
 
   // Load from localStorage after hydration to avoid SSR mismatch
   useEffect(() => {
-    const stored = localStorage.getItem(TODAY_SORT_ORDER_KEY);
+    const stored = localStorage.getItem(storageKey);
     if (stored) {
       try {
         // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -17,20 +17,20 @@ export function useTodaySortOrder() {
         /* corrupt data, start fresh */
       }
     }
-  }, []);
+  }, [storageKey]);
 
   const updateSortOrder = useCallback((newOrder: string[]) => {
     setSortOrder(newOrder);
-    localStorage.setItem(TODAY_SORT_ORDER_KEY, JSON.stringify(newOrder));
-  }, []);
+    localStorage.setItem(storageKey, JSON.stringify(newOrder));
+  }, [storageKey]);
 
   const cleanupStaleIds = useCallback((validIds: Set<string>) => {
     setSortOrder((prev) => {
       const cleaned = prev.filter((id) => validIds.has(id));
-      localStorage.setItem(TODAY_SORT_ORDER_KEY, JSON.stringify(cleaned));
+      localStorage.setItem(storageKey, JSON.stringify(cleaned));
       return cleaned;
     });
-  }, []);
+  }, [storageKey]);
 
   return {
     sortOrder,
