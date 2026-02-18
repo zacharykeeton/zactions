@@ -190,16 +190,14 @@ export function getTasksForToday(tasks: Task[], today: Date): Task[] {
  * Check if a task was completed today, including recurring tasks that have been reset.
  * Returns true if:
  * - Task is currently marked as completed, OR
- * - Task has a completion in its history from today
+ * - Task has a completion record with completedAt matching today
  */
 export function wasCompletedToday(task: Task, today: Date): boolean {
-  // Normal completion
   if (task.completed) return true;
 
-  // Check recurring task completion history
   if (task.completionHistory && task.completionHistory.length > 0) {
-    return task.completionHistory.some((timestamp) =>
-      isSameDay(new Date(timestamp), today)
+    return task.completionHistory.some((record) =>
+      isSameDay(new Date(record.completedAt), today)
     );
   }
 
@@ -207,8 +205,36 @@ export function wasCompletedToday(task: Task, today: Date): boolean {
 }
 
 /**
+ * Check if a task's occurrence for today was completed.
+ * For recurring tasks: checks if any completion record has a dueDate or scheduledDate
+ * matching today. Migrated records (dueDate === null) fall back to completedAt.
+ * For non-recurring tasks: delegates to wasCompletedToday.
+ */
+export function wasCompletedForToday(task: Task, today: Date): boolean {
+  if (!task.recurrence) {
+    return wasCompletedToday(task, today);
+  }
+
+  if (task.completed) return true;
+
+  if (task.completionHistory && task.completionHistory.length > 0) {
+    return task.completionHistory.some((record) => {
+      if (record.dueDate === null) {
+        return isSameDay(new Date(record.completedAt), today);
+      }
+      if (isSameDay(new Date(record.dueDate), today)) return true;
+      if (record.scheduledDate && isSameDay(new Date(record.scheduledDate), today)) return true;
+      return false;
+    });
+  }
+
+  return false;
+}
+
+/**
  * Calculate today's progress statistics for a list of tasks.
- * Counts tasks completed today, including recurring tasks that have been reset.
+ * Uses wasCompletedForToday so recurring tasks count based on their
+ * occurrence's due/scheduled date, not just when the user pressed complete.
  */
 export function getTodayProgress(tasks: Task[], today: Date): {
   completedCount: number;
@@ -216,7 +242,7 @@ export function getTodayProgress(tasks: Task[], today: Date): {
   percentage: number;
 } {
   const totalCount = tasks.length;
-  const completedCount = tasks.filter(task => wasCompletedToday(task, today)).length;
+  const completedCount = tasks.filter(task => wasCompletedForToday(task, today)).length;
   const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   return { completedCount, totalCount, percentage };

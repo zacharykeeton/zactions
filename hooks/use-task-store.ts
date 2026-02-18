@@ -2,16 +2,30 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
-import type { Task, Priority, RecurrencePattern } from "@/lib/types";
+import type { Task, Priority, RecurrencePattern, CompletionRecord } from "@/lib/types";
 import { removeItem, findItemDeep } from "@/lib/tree-utils";
 import { getNextDueDate, fastForwardDueDate } from "@/lib/recurrence-utils";
 import { LOCAL_STORAGE_KEY } from "@/lib/constants";
 
 function migrateTask(task: Task): Task {
+  // Migrate completionHistory from old string[] to CompletionRecord[]
+  let completionHistory = task.completionHistory;
+  if (completionHistory && completionHistory.length > 0) {
+    completionHistory = (completionHistory as unknown as Array<string | CompletionRecord>).map(
+      (entry): CompletionRecord => {
+        if (typeof entry === "string") {
+          return { scheduledDate: null, dueDate: null, completedAt: entry };
+        }
+        return entry;
+      }
+    );
+  }
+
   return {
     ...task,
     timeInvestedMs: task.timeInvestedMs ?? 0,
     archived: task.archived ?? false,
+    completionHistory,
     children: task.children.map(migrateTask),
   };
 }
@@ -165,7 +179,11 @@ export function useTaskStore() {
                 completed: false,
                 dueDate: nextDue,
                 completedDate: null,
-                completionHistory: [...(item.completionHistory || []), now],
+                completionHistory: [...(item.completionHistory || []), {
+                  scheduledDate: item.scheduledDate,
+                  dueDate: item.dueDate!,
+                  completedAt: now,
+                } as CompletionRecord],
               };
             }
             if (item.children.length > 0)

@@ -9,6 +9,12 @@ export interface RecurrencePattern {
   daysOfWeek?: DayOfWeek[];
 }
 
+export interface CompletionRecord {
+  scheduledDate: string | null;
+  dueDate: string | null;
+  completedAt: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -20,7 +26,7 @@ export interface Task {
   createdDate: string;
   children: Task[];
   recurrence?: RecurrencePattern;
-  completionHistory?: string[];
+  completionHistory?: CompletionRecord[];
   timeInvestedMs: number;
   archived: boolean;
 }
