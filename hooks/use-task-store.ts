@@ -211,6 +211,10 @@ export function useTaskStore() {
     });
   }, []);
 
+  const restoreTasks = useCallback((snapshot: Task[]) => {
+    setTasks(snapshot);
+  }, []);
+
   const reorderTasks = useCallback((newTasks: Task[]) => {
     setTasks(newTasks);
   }, []);
@@ -292,6 +296,7 @@ export function useTaskStore() {
     deleteTask,
     toggleTask,
     reorderTasks,
+    restoreTasks,
     archiveTask,
     unarchiveTask,
     fastForwardTask,

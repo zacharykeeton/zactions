@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { startOfDay, addDays } from "date-fns";
 import { ListTodo, Plus, CalendarCheck, Archive, CalendarClock } from "lucide-react";
+import { toast } from "sonner";
 import { preloadCompletionSound } from "@/lib/completion-sound";
 import { useTaskStore } from "@/hooks/use-task-store";
 import { useTimer } from "@/hooks/use-timer";
@@ -44,6 +45,7 @@ export default function Home() {
     unarchiveTask,
     fastForwardTask,
     skipTodayTask,
+    restoreTasks,
   } = useTaskStore();
 
   const handleSaveElapsed = useCallback(
@@ -78,7 +80,19 @@ export default function Home() {
 
   function handleDeleteWithTimer(id: string) {
     stopTimerForTask(id);
+    const taskToDelete = findItemDeep(tasks, id);
+    const snapshot = tasks;
     deleteTask(id);
+
+    toast.dismiss();
+    const title = taskToDelete?.title;
+    toast(title ? `"${title}" deleted` : "Task deleted", {
+      action: {
+        label: "Undo",
+        onClick: () => restoreTasks(snapshot),
+      },
+      duration: 5000,
+    });
   }
 
   function handleArchiveWithTimer(id: string) {
