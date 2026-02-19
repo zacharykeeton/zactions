@@ -23,7 +23,14 @@ npm run dev      # Dev server at http://localhost:3000
 npm run build    # Production build
 npm start        # Production server (run after build)
 npm run lint     # ESLint
+npx vitest run   # Run unit tests (single run)
+npx vitest       # Run unit tests (watch mode)
 ```
+
+## Testing
+- **Vitest** for unit tests (`vitest.config.ts` — globals enabled, node environment)
+- Test files live alongside source: `lib/recurrence-utils.test.ts`
+- Run tests: `npx vitest run` (single run) or `npx vitest` (watch mode)
 
 ## Project Architecture
 
@@ -34,17 +41,29 @@ app/
   page.tsx            — Main page ("use client"), wires store + tree + dialog
   globals.css         — Tailwind v4 config, OKLCH design tokens, dark mode
 components/
-  ui/                 — shadcn/ui components (button, input, checkbox, dialog, popover, calendar, select, badge, label, dropdown-menu)
+  ui/                 — shadcn/ui components (button, input, checkbox, dialog, popover, calendar, select, badge, label, dropdown-menu, tabs, progress)
   task-tree.tsx       — DndContext + SortableContext wrapper (DnD orchestrator)
   task-item.tsx       — Sortable task row + TaskItemOverlay for drag preview
+  task-row-content.tsx — Shared task row rendering (used by task-item + today-task-item)
   task-form.tsx       — Add/Edit task dialog form (title, priority, due date, scheduled date)
+  today-list.tsx      — "Today" view: filters tasks scheduled/due today
+  today-task-item.tsx — Task item variant for the Today list
+  archived-list.tsx   — Archived tasks view
 hooks/
   use-task-store.ts   — Task CRUD + localStorage persistence
+  use-timer.ts        — Time-tracking timer hook
+  use-today-sort-order.ts — Separate sort order for Today list (localStorage)
 lib/
-  types.ts            — Task, FlattenedTask, Priority types
+  types.ts            — Task, FlattenedTask, Priority, RecurrencePattern types
   constants.ts        — INDENTATION_WIDTH (32px), LOCAL_STORAGE_KEY
   tree-utils.ts       — Tree algorithms (flatten, build, projection, find, remove, etc.)
   utils.ts            — cn() utility (clsx + tailwind-merge)
+  recurrence-utils.ts — Recurring task logic (getNextDueDate, fast-forward)
+  recurrence-utils.test.ts — Unit tests for recurrence logic
+  time-utils.ts       — Time formatting helpers
+  today-sort-utils.ts — Sort utilities for Today view
+  completion-sound.ts — Audio feedback on task completion
+vitest.config.ts      — Vitest test runner config (globals, node env, @ alias)
 ```
 
 ### Task Data Model
@@ -59,6 +78,10 @@ interface Task {
   completedDate: string | null;  // ISO date, auto-set on toggle
   createdDate: string;           // ISO date
   children: Task[];              // recursive subtasks (infinite nesting)
+  recurrence?: RecurrencePattern; // daily | weekly | monthly | yearly (+ daysOfWeek)
+  completionHistory?: CompletionRecord[]; // tracks past completions for recurring tasks
+  timeInvestedMs: number;        // tracked time spent on task
+  archived: boolean;             // soft-delete / archive flag
 }
 ```
 
