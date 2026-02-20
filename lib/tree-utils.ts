@@ -172,6 +172,11 @@ export function getTasksForToday(tasks: Task[], today: Date): Task[] {
   function collect(items: Task[]) {
     for (const task of items) {
       if (task.archived) continue;
+      // Exclude tasks completed before today
+      if (task.completed && task.completedDate && isBefore(parseISO(task.completedDate), today)) {
+        collect(task.children);
+        continue;
+      }
       const isDueToday = task.dueDate && isSameDay(parseISO(task.dueDate), today);
       const isScheduledToday = task.scheduledDate && isSameDay(parseISO(task.scheduledDate), today);
       const isPastDue = task.dueDate && !task.completed && isBefore(parseISO(task.dueDate), today);
