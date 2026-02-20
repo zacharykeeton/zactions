@@ -14,23 +14,27 @@ A recursive to-do app built with Next.js 16.1.6, featuring infinite nesting of t
 - **@dnd-kit** (core, sortable, utilities) for drag and drop
 - **date-fns** for date formatting
 - **uuid** for ID generation
+- **next-themes** for dark/light mode switching
+- **sonner** for toast notifications
+- **canvas-confetti** for completion celebrations
 - **Geist Sans** and **Geist Mono** fonts (next/font)
 
 ## Development Commands
 
 ```bash
-npm run dev      # Dev server at http://localhost:3000
+npm run dev      # Dev server at http://localhost:8547
 npm run build    # Production build
 npm start        # Production server (run after build)
 npm run lint     # ESLint
-npx vitest run   # Run unit tests (single run)
-npx vitest       # Run unit tests (watch mode)
+npm test         # Run unit tests (watch mode)
+npm run test:run # Run unit tests (single run)
+npm run test:ui  # Run unit tests with UI
 ```
 
 ## Testing
 - **Vitest** for unit tests (`vitest.config.ts` — globals enabled, node environment)
 - Test files live alongside source: `lib/recurrence-utils.test.ts`
-- Run tests: `npx vitest run` (single run) or `npx vitest` (watch mode)
+- Run tests: `npm run test:run` (single run) or `npm test` (watch mode)
 
 ## Project Architecture
 
@@ -40,8 +44,11 @@ app/
   layout.tsx          — Root layout (fonts, metadata)
   page.tsx            — Main page ("use client"), wires store + tree + dialog
   globals.css         — Tailwind v4 config, OKLCH design tokens, dark mode
+  use-task-store.ts   — Task CRUD + localStorage persistence
+  use-timer.ts        — Time-tracking timer hook
+  use-today-sort-order.ts — Separate sort order for Today list (localStorage)
 components/
-  ui/                 — shadcn/ui components (button, input, checkbox, dialog, popover, calendar, select, badge, label, dropdown-menu, tabs, progress)
+  ui/                 — shadcn/ui components (button, input, checkbox, dialog, popover, calendar, select, badge, label, dropdown-menu, tabs, progress, sonner)
   task-tree.tsx       — DndContext + SortableContext wrapper (DnD orchestrator)
   task-item.tsx       — Sortable task row + TaskItemOverlay for drag preview
   task-row-content.tsx — Shared task row rendering (used by task-item + today-task-item)
@@ -49,10 +56,6 @@ components/
   today-list.tsx      — "Today" view: filters tasks scheduled/due today
   today-task-item.tsx — Task item variant for the Today list
   archived-list.tsx   — Archived tasks view
-hooks/
-  use-task-store.ts   — Task CRUD + localStorage persistence
-  use-timer.ts        — Time-tracking timer hook
-  use-today-sort-order.ts — Separate sort order for Today list (localStorage)
 lib/
   types.ts            — Task, FlattenedTask, Priority, RecurrencePattern types
   constants.ts        — INDENTATION_WIDTH (32px), LOCAL_STORAGE_KEY
@@ -110,11 +113,11 @@ The app uses a **flat-list pattern** for tree DnD — the canonical nested `Task
 
 ### State Management
 
-All state lives in `useTaskStore()` hook ([hooks/use-task-store.ts](hooks/use-task-store.ts)):
+All state lives in `useTaskStore()` hook ([app/use-task-store.ts](app/use-task-store.ts)):
 - `useState<Task[]>` with lazy initializer that reads from localStorage
 - Persistence via `useEffect` that writes to localStorage on every change (skips initial mount via ref)
 - Deep immutable tree updates: recursive `map()` to find and update nodes by ID
-- Functions: `addTask`, `updateTask`, `deleteTask`, `toggleTask`, `reorderTasks`
+- Functions: `addTask`, `updateTask`, `deleteTask`, `toggleTask`, `reorderTasks`, `restoreTasks`, `archiveTask`, `unarchiveTask`, `fastForwardTask`, `skipTodayTask`
 
 ### Styling System
 - **Tailwind CSS v4** (PostCSS plugin-based, no traditional config file)
@@ -137,8 +140,8 @@ All state lives in `useTaskStore()` hook ([hooks/use-task-store.ts](hooks/use-ta
 - Action buttons revealed on hover: `opacity-0 group-hover:opacity-100`
 - Priority colors defined as a map: low=emerald, medium=amber, high=red
 
-### ESLint: No setState in Effects
-The `react-hooks/set-state-in-effect` rule is enforced. Avoid calling `setState` directly in `useEffect` bodies. Use lazy initializers for `useState` instead:
+### ESLint: Prefer Lazy Initializers over setState in Effects
+The `react-hooks/set-state-in-effect` rule is inherited from `eslint-config-next`. Prefer lazy initializers for `useState` over calling `setState` in `useEffect` bodies:
 ```typescript
 // Do this:
 const [data, setData] = useState<T[]>(() => loadFromStorage());
