@@ -23,7 +23,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import type { Task, FlattenedTask } from "@/lib/types";
+import type { Task, Tag, FlattenedTask } from "@/lib/types";
 import {
   flattenTree,
   buildTree,
@@ -114,6 +114,7 @@ interface TaskTreeProps {
   currentElapsedMs: number;
   onStartTimer: (taskId: string) => void;
   onPauseTimer: () => void;
+  tagMap?: Record<string, Tag>;
 }
 
 export function TaskTree({
@@ -129,6 +130,7 @@ export function TaskTree({
   currentElapsedMs,
   onStartTimer,
   onPauseTimer,
+  tagMap,
 }: TaskTreeProps) {
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const [overId, setOverId] = useState<UniqueIdentifier | null>(null);
@@ -309,6 +311,7 @@ export function TaskTree({
         hasChildren={task.children.length > 0}
         isCollapsed={collapsedIds.has(task.id)}
         onToggleCollapse={toggleCollapsed}
+        tagMap={tagMap}
       />
     );
   }

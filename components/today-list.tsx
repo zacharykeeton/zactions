@@ -16,7 +16,7 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
-import type { Task } from "@/lib/types";
+import type { Task, Tag } from "@/lib/types";
 import { getTasksForToday, getTodayProgress } from "@/lib/tree-utils";
 import { sortTodayTasks } from "@/lib/today-sort-utils";
 import { useTodaySortOrder } from "@/hooks/use-today-sort-order";
@@ -79,6 +79,7 @@ interface TodayListProps {
   currentElapsedMs: number;
   onStartTimer: (taskId: string) => void;
   onPauseTimer: () => void;
+  tagMap?: Record<string, Tag>;
 }
 
 export function TodayList({
@@ -99,6 +100,7 @@ export function TodayList({
   currentElapsedMs,
   onStartTimer,
   onPauseTimer,
+  tagMap,
 }: TodayListProps) {
   const { sortOrder, updateSortOrder, cleanupStaleIds } = useTodaySortOrder(storageKey);
 
@@ -215,6 +217,7 @@ export function TodayList({
         displayTimeMs={displayTimeMs}
         onStartTimer={onStartTimer}
         onPauseTimer={onPauseTimer}
+        tagMap={tagMap}
       />
     );
   }

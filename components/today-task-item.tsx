@@ -5,7 +5,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { isPast, isToday, parseISO } from "date-fns";
 import { GripVertical } from "lucide-react";
-import type { Task } from "@/lib/types";
+import type { Task, Tag } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { TaskRowContent } from "@/components/task-row-content";
 
@@ -21,6 +21,7 @@ interface TodayTaskItemProps {
   displayTimeMs: number;
   onStartTimer: (taskId: string) => void;
   onPauseTimer: () => void;
+  tagMap?: Record<string, Tag>;
 }
 
 export function TodayTaskItem({
@@ -35,6 +36,7 @@ export function TodayTaskItem({
   displayTimeMs,
   onStartTimer,
   onPauseTimer,
+  tagMap,
 }: TodayTaskItemProps) {
   const {
     attributes,
@@ -97,6 +99,7 @@ export function TodayTaskItem({
         onArchive={onArchive}
         onFastForward={onFastForward}
         onSkipToday={onSkipToday}
+        tagMap={tagMap}
         isTimerActive={isTimerActive}
         displayTimeMs={displayTimeMs}
         onStartTimer={onStartTimer}

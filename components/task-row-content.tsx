@@ -19,8 +19,8 @@ import {
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { formatRecurrencePattern } from "@/lib/recurrence-utils";
-import { priorityColors } from "@/lib/constants";
-import type { Task } from "@/lib/types";
+import { priorityColors, TAG_COLORS } from "@/lib/constants";
+import type { Task, Tag } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/time-utils";
 import { playCompletionSound } from "@/lib/completion-sound";
@@ -37,6 +37,7 @@ interface TaskRowContentProps {
   onArchive?: (id: string) => void;
   onFastForward?: (id: string) => void;
   onSkipToday?: (id: string) => void;
+  tagMap?: Record<string, Tag>;
   isTimerActive: boolean;
   displayTimeMs: number;
   onStartTimer: (taskId: string) => void;
@@ -52,6 +53,7 @@ export function TaskRowContent({
   onArchive,
   onFastForward,
   onSkipToday,
+  tagMap,
   isTimerActive,
   displayTimeMs,
   onStartTimer,
@@ -111,6 +113,21 @@ export function TaskRowContent({
       </span>
 
       <div className="flex shrink-0 items-center gap-1.5">
+        {tagMap && task.tags?.map((tagId) => {
+          const tag = tagMap[tagId];
+          if (!tag) return null;
+          const colorStyle = TAG_COLORS[tag.color];
+          return (
+            <Badge
+              key={tagId}
+              variant="outline"
+              className={cn("text-xs", colorStyle?.badge)}
+            >
+              {tag.name}
+            </Badge>
+          );
+        })}
+
         {task.recurrence && (
           <Badge
             variant="outline"

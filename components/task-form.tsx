@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { CalendarIcon, Repeat, X } from "lucide-react";
-import type { Task, Priority, RecurrenceInterval, DayOfWeek, RecurrencePattern } from "@/lib/types";
+import type { Task, Tag, Priority, RecurrenceInterval, DayOfWeek, RecurrencePattern } from "@/lib/types";
+import { TAG_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,10 +23,12 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 
 interface TaskFormProps {
   initialData?: Task;
   parentId: string | null;
+  availableTags?: Tag[];
   onSubmit: (data: {
     title: string;
     priority: Priority;
@@ -33,6 +36,7 @@ interface TaskFormProps {
     scheduledDate: string | null;
     parentId: string | null;
     recurrence?: RecurrencePattern;
+    tags?: string[];
   }) => void;
   onCancel: () => void;
 }
@@ -40,6 +44,7 @@ interface TaskFormProps {
 export function TaskForm({
   initialData,
   parentId,
+  availableTags = [],
   onSubmit,
   onCancel,
 }: TaskFormProps) {
@@ -62,9 +67,18 @@ export function TaskForm({
   const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>(
     initialData?.recurrence?.daysOfWeek ?? []
   );
+  const [selectedTags, setSelectedTags] = useState<string[]>(
+    initialData?.tags ?? []
+  );
 
   const isSubtask = parentId !== null;
   const canSubmit = title.trim() && !(isRecurring && !dueDate);
+
+  function toggleTag(tagId: string) {
+    setSelectedTags((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+    );
+  }
 
   function toggleDay(day: DayOfWeek) {
     setSelectedDays((prev) =>
@@ -94,6 +108,7 @@ export function TaskForm({
       scheduledDate: scheduledDate ? format(scheduledDate, "yyyy-MM-dd") : null,
       parentId,
       recurrence,
+      tags: selectedTags.length > 0 ? selectedTags : undefined,
     });
   }
 
@@ -123,6 +138,31 @@ export function TaskForm({
           </SelectContent>
         </Select>
       </div>
+
+      {availableTags.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <Label>Tags</Label>
+          <div className="flex flex-wrap gap-1.5">
+            {availableTags.map((tag) => {
+              const isSelected = selectedTags.includes(tag.id);
+              const colorStyle = TAG_COLORS[tag.color];
+              return (
+                <Badge
+                  key={tag.id}
+                  variant={isSelected ? "default" : "outline"}
+                  className={cn(
+                    "cursor-pointer select-none transition-colors",
+                    !isSelected && colorStyle?.badge
+                  )}
+                  onClick={() => toggleTag(tag.id)}
+                >
+                  {tag.name}
+                </Badge>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <Label>Due Date</Label>

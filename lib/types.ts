@@ -15,6 +15,22 @@ export interface CompletionRecord {
   completedAt: string;
 }
 
+export type TagColor =
+  | "red"
+  | "blue"
+  | "green"
+  | "amber"
+  | "purple"
+  | "pink"
+  | "cyan"
+  | "slate";
+
+export interface Tag {
+  id: string;
+  name: string;
+  color: TagColor;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -29,6 +45,7 @@ export interface Task {
   completionHistory?: CompletionRecord[];
   timeInvestedMs: number;
   archived: boolean;
+  tags?: string[];
 }
 
 export interface FlattenedTask extends Task {

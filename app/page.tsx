@@ -2,10 +2,11 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { startOfDay, addDays } from "date-fns";
-import { ListTodo, Plus, CalendarCheck, Archive, CalendarClock } from "lucide-react";
+import { ListTodo, Plus, CalendarCheck, Archive, CalendarClock, Tags } from "lucide-react";
 import { toast } from "sonner";
 import { preloadCompletionSound } from "@/lib/completion-sound";
 import { useTaskStore } from "@/hooks/use-task-store";
+import { useTagStore } from "@/hooks/use-tag-store";
 import { useTimer } from "@/hooks/use-timer";
 import { findItemDeep } from "@/lib/tree-utils";
 import { TaskTree } from "@/components/task-tree";
@@ -13,6 +14,7 @@ import { TodayList } from "@/components/today-list";
 import { ArchivedList } from "@/components/archived-list";
 import { excludeArchivedTasks } from "@/lib/tree-utils";
 import { TaskForm } from "@/components/task-form";
+import { TagManager } from "@/components/tag-manager";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +49,18 @@ export default function Home() {
     skipTodayTask,
     restoreTasks,
   } = useTaskStore();
+
+  const {
+    tags,
+    addTag,
+    updateTag: updateTagDef,
+    deleteTag: deleteTagDef,
+  } = useTagStore();
+
+  const tagMap = useMemo(
+    () => Object.fromEntries(tags.map((t) => [t.id, t])),
+    [tags]
+  );
 
   const handleSaveElapsed = useCallback(
     (taskId: string, elapsedMs: number) => {
@@ -105,6 +119,7 @@ export default function Home() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [parentIdForNew, setParentIdForNew] = useState<string | null>(null);
+  const [tagManagerOpen, setTagManagerOpen] = useState(false);
 
   function handleAddRootTask() {
     setEditingTask(null);
@@ -130,6 +145,7 @@ export default function Home() {
     scheduledDate: string | null;
     parentId: string | null;
     recurrence?: RecurrencePattern;
+    tags?: string[];
   }) {
     if (editingTask) {
       updateTask(editingTask.id, {
@@ -138,6 +154,7 @@ export default function Home() {
         dueDate: data.dueDate,
         scheduledDate: data.scheduledDate,
         recurrence: data.recurrence,
+        tags: data.tags,
       });
     } else {
       addTask(
@@ -146,7 +163,8 @@ export default function Home() {
         data.dueDate,
         data.scheduledDate,
         data.parentId,
-        data.recurrence
+        data.recurrence,
+        data.tags
       );
     }
     setDialogOpen(false);
@@ -157,10 +175,15 @@ export default function Home() {
       <div className="mx-auto max-w-3xl px-4 py-8">
         <header className="mb-8 flex items-center justify-between">
           <h1 className="text-2xl font-bold tracking-tight">Tasks</h1>
-          <Button onClick={handleAddRootTask}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Task
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={() => setTagManagerOpen(true)} title="Manage tags">
+              <Tags className="h-4 w-4" />
+            </Button>
+            <Button onClick={handleAddRootTask}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Task
+            </Button>
+          </div>
         </header>
 
         <Tabs defaultValue="all" className="w-full">
@@ -212,6 +235,7 @@ export default function Home() {
                 currentElapsedMs={currentElapsedMs}
                 onStartTimer={startTimer}
                 onPauseTimer={pauseTimer}
+                tagMap={tagMap}
               />
             )}
           </TabsContent>
@@ -229,6 +253,7 @@ export default function Home() {
               currentElapsedMs={currentElapsedMs}
               onStartTimer={startTimer}
               onPauseTimer={pauseTimer}
+              tagMap={tagMap}
             />
           </TabsContent>
 
@@ -250,6 +275,7 @@ export default function Home() {
               currentElapsedMs={currentElapsedMs}
               onStartTimer={startTimer}
               onPauseTimer={pauseTimer}
+              tagMap={tagMap}
             />
           </TabsContent>
 
@@ -277,8 +303,23 @@ export default function Home() {
               key={editingTask?.id ?? parentIdForNew ?? "new"}
               initialData={editingTask ?? undefined}
               parentId={editingTask ? null : parentIdForNew}
+              availableTags={tags}
               onSubmit={handleFormSubmit}
               onCancel={() => setDialogOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={tagManagerOpen} onOpenChange={setTagManagerOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Manage Tags</DialogTitle>
+            </DialogHeader>
+            <TagManager
+              tags={tags}
+              onAdd={addTag}
+              onUpdate={updateTagDef}
+              onDelete={deleteTagDef}
             />
           </DialogContent>
         </Dialog>

@@ -6,7 +6,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { isPast, isToday, parseISO } from "date-fns";
 import { ChevronDown, ChevronRight, GripVertical } from "lucide-react";
 import { priorityColors } from "@/lib/constants";
-import type { FlattenedTask, Task } from "@/lib/types";
+import type { FlattenedTask, Task, Tag } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { TaskRowContent } from "@/components/task-row-content";
@@ -29,6 +29,7 @@ interface TaskItemProps {
   hasChildren?: boolean;
   isCollapsed?: boolean;
   onToggleCollapse?: (id: string) => void;
+  tagMap?: Record<string, Tag>;
 }
 
 export function TaskItem({
@@ -48,6 +49,7 @@ export function TaskItem({
   hasChildren,
   isCollapsed,
   onToggleCollapse,
+  tagMap,
 }: TaskItemProps) {
   const {
     attributes,
@@ -137,6 +139,7 @@ export function TaskItem({
         onAddSubtask={onAddSubtask}
         onArchive={onArchive}
         onFastForward={onFastForward}
+        tagMap={tagMap}
         isTimerActive={isTimerActive}
         displayTimeMs={displayTimeMs}
         onStartTimer={onStartTimer}
