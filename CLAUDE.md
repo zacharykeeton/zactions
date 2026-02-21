@@ -1,7 +1,5 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Project Overview
 
 A recursive to-do app built with Next.js 16.1.6, featuring infinite nesting of tasks and drag-and-drop reordering via @dnd-kit.
@@ -42,27 +40,41 @@ npm run test:ui  # Run unit tests with UI
 ```
 app/
   layout.tsx          — Root layout (fonts, metadata)
-  page.tsx            — Main page ("use client"), wires store + tree + dialog
+  page.tsx            — Main page ("use client"), wires all stores + sidebar + DnD context
   globals.css         — Tailwind v4 config, OKLCH design tokens, dark mode
+hooks/
   use-task-store.ts   — Task CRUD + localStorage persistence
+  use-tag-store.ts    — Tag definitions CRUD + localStorage
+  use-list-store.ts   — Task list CRUD + localStorage
   use-timer.ts        — Time-tracking timer hook
-  use-today-sort-order.ts — Separate sort order for Today list (localStorage)
+  use-today-sort-order.ts — Sort order for Today/Tomorrow lists (localStorage)
+  use-mobile.ts       — Mobile breakpoint detection
 components/
-  ui/                 — shadcn/ui components (button, input, checkbox, dialog, popover, calendar, select, badge, label, dropdown-menu, tabs, progress, sonner)
+  ui/                 — shadcn/ui components (button, input, checkbox, dialog, popover, calendar, select, badge, label, dropdown-menu, tabs, progress, sonner, sidebar, separator, sheet, skeleton, tooltip)
+  app-sidebar.tsx     — Sidebar nav: list switching, archived/tags views
+  droppable-sidebar-item.tsx — DnD-droppable sidebar list item (drop task → move to list)
+  list-form.tsx       — Add/edit task list dialog
+  mode-toggle.tsx     — Dark/light mode toggle button
+  tag-manager.tsx     — Tag definitions UI (create, edit, delete tags)
   task-tree.tsx       — DndContext + SortableContext wrapper (DnD orchestrator)
   task-item.tsx       — Sortable task row + TaskItemOverlay for drag preview
   task-row-content.tsx — Shared task row rendering (used by task-item + today-task-item)
-  task-form.tsx       — Add/Edit task dialog form (title, priority, due date, scheduled date)
+  task-form.tsx       — Add/Edit task dialog (title, priority, due/scheduled date, tags, list)
   today-list.tsx      — "Today" view: filters tasks scheduled/due today
   today-task-item.tsx — Task item variant for the Today list
   archived-list.tsx   — Archived tasks view
 lib/
-  types.ts            — Task, FlattenedTask, Priority, RecurrencePattern types
-  constants.ts        — INDENTATION_WIDTH (32px), LOCAL_STORAGE_KEY
+  types.ts            — Task, FlattenedTask, Tag, TaskList, BackupData types
+  constants.ts        — All constants: INDENTATION_WIDTH, storage keys, TAG_COLORS, priorityColors, sidebar DnD IDs
   tree-utils.ts       — Tree algorithms (flatten, build, projection, find, remove, etc.)
+  tree-utils.test.ts  — Unit tests for tree utils
   utils.ts            — cn() utility (clsx + tailwind-merge)
   recurrence-utils.ts — Recurring task logic (getNextDueDate, fast-forward)
   recurrence-utils.test.ts — Unit tests for recurrence logic
+  backup-utils.ts     — JSON backup export/import logic
+  backup-utils.test.ts — Unit tests for backup/restore
+  dnd-collision.ts    — Custom collision detection (sidebar-aware: sidebar items take priority)
+  dnd-utils.ts        — DnD helper functions (isSidebarDroppableId, getListIdFromDroppableId)
   time-utils.ts       — Time formatting helpers
   today-sort-utils.ts — Sort utilities for Today view
   completion-sound.ts — Audio feedback on task completion
@@ -85,10 +97,17 @@ interface Task {
   completionHistory?: CompletionRecord[]; // tracks past completions for recurring tasks
   timeInvestedMs: number;        // tracked time spent on task
   archived: boolean;             // soft-delete / archive flag
+  tags?: string[];               // array of Tag IDs
+  listId?: string;               // TaskList ID (undefined = Inbox / all tasks)
 }
+
+// Also in types.ts:
+// Tag: { id, name, color: TagColor }
+// TaskList: { id, name, color: TagColor, createdDate }
+// BackupData: { version, exportedAt, tasks, lists, tags, preferences? }
 ```
 
-Tasks are stored as a nested tree (`Task[]`) in localStorage under key `"recursive-todo-tasks"`.
+Tasks in localStorage: `"recursive-todo-tasks"`. Tags: `"recursive-todo-tags"`. Lists: `"recursive-todo-lists"`.
 
 ### Drag-and-Drop Architecture (@dnd-kit)
 
@@ -108,16 +127,30 @@ The app uses a **flat-list pattern** for tree DnD — the canonical nested `Task
 
 **Important files for DnD changes:**
 - [lib/tree-utils.ts](lib/tree-utils.ts) — `getProjection()` is the key algorithm: clamps depth between `maxDepth` (predecessor depth + 1) and `minDepth` (successor depth), then walks backwards to find parentId
+- [lib/dnd-collision.ts](lib/dnd-collision.ts) — `sidebarAwareCollision`: sidebar droppables win over task items so dragging a task over the sidebar reliably reassigns its list
 - [components/task-tree.tsx](components/task-tree.tsx) — Manages drag state (`activeId`, `overId`, `offsetLeft`) and orchestrates the flatten → project → rebuild cycle
 - [components/task-item.tsx](components/task-item.tsx) — `useSortable()` hook, transform/transition styles, depth-based indentation
 
+### App Views & Navigation
+
+The sidebar (`AppSidebar`) controls what is shown in the main content area:
+- **Inbox / named lists** — filters tasks by `listId`; drag a task onto a sidebar list item to reassign it
+- **Today** — tasks scheduled/due today (with recurring and non-recurring sections)
+- **Tomorrow** — tasks scheduled/due tomorrow (same section structure as Today)
+- **Archived** — soft-deleted tasks
+- **Tags** — tag management (`TagManager` component)
+
+`SidebarView` state in `page.tsx`: `"tasks" | "archived" | "tags"`
+`ActiveListFilter` (from `app-sidebar.tsx`): `"all" | "today" | "tomorrow" | string` (string = list ID)
+
 ### State Management
 
-All state lives in `useTaskStore()` hook ([app/use-task-store.ts](app/use-task-store.ts)):
-- `useState<Task[]>` with lazy initializer that reads from localStorage
-- Persistence via `useEffect` that writes to localStorage on every change (skips initial mount via ref)
-- Deep immutable tree updates: recursive `map()` to find and update nodes by ID
-- Functions: `addTask`, `updateTask`, `deleteTask`, `toggleTask`, `reorderTasks`, `restoreTasks`, `archiveTask`, `unarchiveTask`, `fastForwardTask`, `skipTodayTask`
+State is split across three hooks in `hooks/`:
+- `useTaskStore` ([hooks/use-task-store.ts](hooks/use-task-store.ts)) — Task CRUD + localStorage; functions: `addTask`, `updateTask`, `deleteTask`, `toggleTask`, `reorderTasks`, `restoreTasks`, `archiveTask`, `unarchiveTask`, `fastForwardTask`, `skipTodayTask`
+- `useTagStore` ([hooks/use-tag-store.ts](hooks/use-tag-store.ts)) — Tag definitions CRUD; functions: `addTag`, `updateTag`, `deleteTag`, `restoreTags`
+- `useListStore` ([hooks/use-list-store.ts](hooks/use-list-store.ts)) — Task list CRUD; functions: `addList`, `updateList`, `deleteList`, `restoreLists`
+
+All hooks use `useState<T[]>` with lazy initializers + `useEffect` for localStorage persistence (skips initial mount via ref). Deep immutable tree updates via recursive `map()`.
 
 ### Styling System
 - **Tailwind CSS v4** (PostCSS plugin-based, no traditional config file)
@@ -153,3 +186,4 @@ useEffect(() => { setData(loadFromStorage()); }, []);
 - Use `@/` prefix for absolute imports (e.g., `import { cn } from "@/lib/utils"`)
 - shadcn/ui: `@/components/ui/[component]`
 - Custom components: `@/components/[component]`
+- Hooks: `@/hooks/[hook-name]`
