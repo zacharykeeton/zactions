@@ -3,14 +3,7 @@
 import { useMemo, useEffect, useState } from "react";
 import { startOfDay } from "date-fns";
 import { CalendarCheck, ChevronDown, ChevronRight } from "lucide-react";
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
+import { useDndMonitor, type DragEndEvent } from "@dnd-kit/core";
 import {
   SortableContext,
   verticalListSortingStrategy,
@@ -25,6 +18,7 @@ import {
   TODAY_RECURRING_SECTION_KEY,
   TODAY_NON_RECURRING_SECTION_KEY,
 } from "@/lib/constants";
+import { isSidebarDroppableId } from "@/lib/dnd-utils";
 import { Progress } from "@/components/ui/progress";
 import { TodayTaskItem } from "@/components/today-task-item";
 
@@ -69,6 +63,7 @@ interface TodayListProps {
   nonRecurringSectionKey?: string;
   emptyMessage?: string;
   progressLabel?: string;
+  listFilter?: (tasks: Task[]) => Task[];
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onEdit: (task: Task) => void;
@@ -90,6 +85,7 @@ export function TodayList({
   nonRecurringSectionKey = TODAY_NON_RECURRING_SECTION_KEY,
   emptyMessage = "Nothing scheduled for today",
   progressLabel = "Today's Progress",
+  listFilter,
   onToggle,
   onDelete,
   onEdit,
@@ -106,7 +102,11 @@ export function TodayList({
 
   const targetDate = useMemo(() => date ?? startOfDay(new Date()), [date]);
 
-  const todayTasks = useMemo(() => getTasksForToday(tasks, targetDate), [tasks, targetDate]);
+  const allTodayTasks = useMemo(() => getTasksForToday(tasks, targetDate), [tasks, targetDate]);
+  const todayTasks = useMemo(
+    () => (listFilter ? listFilter(allTodayTasks) : allTodayTasks),
+    [allTodayTasks, listFilter]
+  );
 
   const sortedTodayTasks = useMemo(
     () => sortTodayTasks(todayTasks, sortOrder),
@@ -127,7 +127,6 @@ export function TodayList({
     [sortedTodayTasks, targetDate]
   );
 
-  // Split into recurring / non-recurring after sort order is applied
   const recurringTasks = useMemo(
     () => sortedTodayTasks.filter((t) => !!t.recurrence),
     [sortedTodayTasks]
@@ -140,7 +139,6 @@ export function TodayList({
   const recurringIds = useMemo(() => recurringTasks.map((t) => t.id), [recurringTasks]);
   const nonRecurringIds = useMemo(() => nonRecurringTasks.map((t) => t.id), [nonRecurringTasks]);
 
-  // Combined sorted IDs (used for arrayMove index lookups)
   const sortedIds = useMemo(() => sortedTodayTasks.map(({ id }) => id), [sortedTodayTasks]);
 
   const [recurringOpen, setRecurringOpen] = useState(() => readSectionState(recurringSectionKey));
@@ -162,26 +160,29 @@ export function TodayList({
     });
   }
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
-    })
-  );
+  useDndMonitor({
+    onDragEnd(event: DragEndEvent) {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
 
-  function handleDragEnd({ active, over }: DragEndEvent) {
-    if (!over || active.id === over.id) return;
+      // Skip sidebar drops (handled by page.tsx)
+      if (isSidebarDroppableId(String(over.id))) return;
 
-    // Reject cross-group drops
-    const activeIsRecurring = recurringIds.includes(active.id as string);
-    const overIsRecurring = recurringIds.includes(over.id as string);
-    if (activeIsRecurring !== overIsRecurring) return;
+      // Skip if this item isn't in our list
+      if (!sortedIds.includes(String(active.id))) return;
 
-    const oldIndex = sortedIds.indexOf(active.id as string);
-    const newIndex = sortedIds.indexOf(over.id as string);
+      // Reject cross-group drops
+      const activeIsRecurring = recurringIds.includes(active.id as string);
+      const overIsRecurring = recurringIds.includes(over.id as string);
+      if (activeIsRecurring !== overIsRecurring) return;
 
-    const newOrder = arrayMove(sortedIds, oldIndex, newIndex);
-    updateSortOrder(newOrder);
-  }
+      const oldIndex = sortedIds.indexOf(active.id as string);
+      const newIndex = sortedIds.indexOf(over.id as string);
+
+      const newOrder = arrayMove(sortedIds, oldIndex, newIndex);
+      updateSortOrder(newOrder);
+    },
+  });
 
   if (todayTasks.length === 0) {
     return (
@@ -241,33 +242,27 @@ export function TodayList({
         <Progress value={completionPercent} className="h-2" />
       </div>
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
+      <CollapsibleSection
+        title="Recurring"
+        open={recurringOpen}
+        onToggle={toggleRecurring}
+        count={recurringTasks.length}
       >
-        <CollapsibleSection
-          title="Recurring"
-          open={recurringOpen}
-          onToggle={toggleRecurring}
-          count={recurringTasks.length}
-        >
-          <SortableContext items={recurringIds} strategy={verticalListSortingStrategy}>
-            {recurringTasks.map(renderTaskItem)}
-          </SortableContext>
-        </CollapsibleSection>
+        <SortableContext items={recurringIds} strategy={verticalListSortingStrategy}>
+          {recurringTasks.map(renderTaskItem)}
+        </SortableContext>
+      </CollapsibleSection>
 
-        <CollapsibleSection
-          title="Non-Recurring"
-          open={nonRecurringOpen}
-          onToggle={toggleNonRecurring}
-          count={nonRecurringTasks.length}
-        >
-          <SortableContext items={nonRecurringIds} strategy={verticalListSortingStrategy}>
-            {nonRecurringTasks.map(renderTaskItem)}
-          </SortableContext>
-        </CollapsibleSection>
-      </DndContext>
+      <CollapsibleSection
+        title="Non-Recurring"
+        open={nonRecurringOpen}
+        onToggle={toggleNonRecurring}
+        count={nonRecurringTasks.length}
+      >
+        <SortableContext items={nonRecurringIds} strategy={verticalListSortingStrategy}>
+          {nonRecurringTasks.map(renderTaskItem)}
+        </SortableContext>
+      </CollapsibleSection>
     </div>
   );
 }

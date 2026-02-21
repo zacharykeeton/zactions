@@ -22,21 +22,7 @@ export function buildTree(flattenedItems: FlattenedTask[]): Task[] {
   const map = new Map<string, Task>();
 
   for (const item of flattenedItems) {
-    const task: Task = {
-      id: item.id,
-      title: item.title,
-      completed: item.completed,
-      priority: item.priority,
-      dueDate: item.dueDate,
-      scheduledDate: item.scheduledDate,
-      completedDate: item.completedDate,
-      createdDate: item.createdDate,
-      children: [],
-      recurrence: item.recurrence,
-      completionHistory: item.completionHistory,
-      timeInvestedMs: item.timeInvestedMs,
-      archived: item.archived,
-    };
+    const task: Task = { ...item, children: [] };
     map.set(task.id, task);
   }
 

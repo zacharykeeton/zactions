@@ -87,7 +87,8 @@ export function useTaskStore() {
       scheduledDate: string | null,
       parentId: string | null,
       recurrence?: RecurrencePattern,
-      tags?: string[]
+      tags?: string[],
+      listId?: string
     ) => {
       // Recurring tasks must have a due date and cannot be subtasks
       if (recurrence && (!dueDate || parentId !== null)) {
@@ -109,6 +110,7 @@ export function useTaskStore() {
         timeInvestedMs: 0,
         archived: false,
         tags,
+        listId,
       };
 
       if (parentId === null) {

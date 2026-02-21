@@ -2,20 +2,9 @@
 
 import { useMemo, useState } from "react";
 import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  KeyboardSensor,
-  useSensor,
-  useSensors,
-  type DragStartEvent,
-  type DragMoveEvent,
+  useDndMonitor,
   type DragEndEvent,
-  type DragOverEvent,
-  DragOverlay,
-  MeasuringStrategy,
   type UniqueIdentifier,
-  defaultDropAnimationSideEffects,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -28,23 +17,11 @@ import {
   flattenTree,
   buildTree,
   getProjection,
-  getChildCount,
   findItemDeep,
 } from "@/lib/tree-utils";
 import { INDENTATION_WIDTH, COLLAPSED_TASKS_KEY } from "@/lib/constants";
-import { TaskItem, TaskItemOverlay } from "./task-item";
-
-const measuring = {
-  droppable: {
-    strategy: MeasuringStrategy.Always,
-  },
-};
-
-const dropAnimation = {
-  sideEffects: defaultDropAnimationSideEffects({
-    styles: { active: { opacity: "0.4" } },
-  }),
-};
+import { isSidebarDroppableId } from "@/lib/dnd-utils";
+import { TaskItem } from "./task-item";
 
 const RECURRING_SECTION_KEY = "task-section-recurring-open";
 const NON_RECURRING_SECTION_KEY = "task-section-nonrecurring-open";
@@ -115,6 +92,9 @@ interface TaskTreeProps {
   onStartTimer: (taskId: string) => void;
   onPauseTimer: () => void;
   tagMap?: Record<string, Tag>;
+  activeId: UniqueIdentifier | null;
+  overId: UniqueIdentifier | null;
+  offsetLeft: number;
 }
 
 export function TaskTree({
@@ -131,11 +111,10 @@ export function TaskTree({
   onStartTimer,
   onPauseTimer,
   tagMap,
+  activeId,
+  overId,
+  offsetLeft,
 }: TaskTreeProps) {
-  const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
-  const [overId, setOverId] = useState<UniqueIdentifier | null>(null);
-  const [offsetLeft, setOffsetLeft] = useState(0);
-
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => {
     if (typeof window === "undefined") return new Set();
     try {
@@ -184,20 +163,16 @@ export function TaskTree({
   const fullFlattenedRecurring = useMemo(() => flattenTree(recurringTasks), [recurringTasks]);
   const fullFlattenedNonRecurring = useMemo(() => flattenTree(nonRecurringTasks), [nonRecurringTasks]);
 
-  // Filter out children of collapsed tasks for rendering, but keep full lists for DnD projection
   const flattenedRecurring = useMemo(() => filterCollapsed(fullFlattenedRecurring, collapsedIds), [fullFlattenedRecurring, collapsedIds]);
   const flattenedNonRecurring = useMemo(() => filterCollapsed(fullFlattenedNonRecurring, collapsedIds), [fullFlattenedNonRecurring, collapsedIds]);
 
   const recurringIds = useMemo(() => flattenedRecurring.map(({ id }) => id), [flattenedRecurring]);
   const nonRecurringIds = useMemo(() => flattenedNonRecurring.map(({ id }) => id), [flattenedNonRecurring]);
 
-  // Full (unfiltered) flattened lists used for DragOverlay lookup and DnD projection
   const allFullFlattenedItems = useMemo(
     () => [...fullFlattenedRecurring, ...fullFlattenedNonRecurring],
     [fullFlattenedRecurring, fullFlattenedNonRecurring]
   );
-
-  const activeItem = activeId ? allFullFlattenedItems.find(({ id }) => id === activeId) : null;
 
   // Determine which group the active item belongs to
   const activeIsRecurring = activeId
@@ -207,81 +182,67 @@ export function TaskTree({
   const activeFlattenedItems = activeIsRecurring ? flattenedRecurring : flattenedNonRecurring;
   const activeGroupTasks = activeIsRecurring ? recurringTasks : nonRecurringTasks;
 
+  // Guard overId against sidebar droppable IDs for projection
+  const safeOverId = overId && !isSidebarDroppableId(String(overId)) ? overId : null;
+
   const projected =
-    activeId && overId
+    activeId && safeOverId
       ? getProjection(
           activeFlattenedItems,
           activeId as string,
-          overId as string,
+          safeOverId as string,
           offsetLeft,
           INDENTATION_WIDTH
         )
       : null;
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
-    }),
-    useSensor(KeyboardSensor)
-  );
+  useDndMonitor({
+    onDragEnd(event: DragEndEvent) {
+      const { active, over } = event;
+      if (!over) return;
 
-  function handleDragStart({ active }: DragStartEvent) {
-    setActiveId(active.id);
-    setOverId(active.id);
-  }
+      // Skip if dropped on sidebar (handled by page.tsx)
+      if (isSidebarDroppableId(String(over.id))) return;
 
-  function handleDragMove({ delta }: DragMoveEvent) {
-    setOffsetLeft(delta.x);
-  }
+      // Skip if active item isn't in our groups
+      const activeInRecurring = fullFlattenedRecurring.some(({ id }) => id === active.id);
+      const activeInNonRecurring = fullFlattenedNonRecurring.some(({ id }) => id === active.id);
+      if (!activeInRecurring && !activeInNonRecurring) return;
 
-  function handleDragOver({ over }: DragOverEvent) {
-    setOverId(over?.id ?? null);
-  }
+      if (active.id === over.id || !projected) return;
 
-  function handleDragEnd({ active, over }: DragEndEvent) {
-    resetState();
-    if (!over || active.id === over.id || !projected) return;
+      const { depth, parentId } = projected;
 
-    const { depth, parentId } = projected;
+      // Prevent nesting under a recurring task
+      if (parentId) {
+        const parent = findItemDeep(tasks, parentId);
+        if (parent?.recurrence) return;
+      }
 
-    // Prevent nesting under a recurring task
-    if (parentId) {
-      const parent = findItemDeep(tasks, parentId);
-      if (parent?.recurrence) return;
-    }
+      const clonedItems = flattenTree(activeGroupTasks);
+      const activeIndex = clonedItems.findIndex(({ id }) => id === active.id);
+      const overIndex = clonedItems.findIndex(({ id }) => id === over.id);
 
-    const clonedItems = flattenTree(activeGroupTasks);
-    const activeIndex = clonedItems.findIndex(({ id }) => id === active.id);
-    const overIndex = clonedItems.findIndex(({ id }) => id === over.id);
+      // If the over item is not in the same group, cancel
+      if (overIndex === -1) return;
 
-    // If the over item is not in the same group, cancel
-    if (overIndex === -1) return;
+      clonedItems[activeIndex] = {
+        ...clonedItems[activeIndex],
+        depth,
+        parentId,
+      };
 
-    clonedItems[activeIndex] = {
-      ...clonedItems[activeIndex],
-      depth,
-      parentId,
-    };
+      const sortedItems = arrayMove(clonedItems, activeIndex, overIndex);
+      const newGroupTree = buildTree(sortedItems);
 
-    const sortedItems = arrayMove(clonedItems, activeIndex, overIndex);
-    const newGroupTree = buildTree(sortedItems);
+      const isRecurring = fullFlattenedRecurring.some(({ id }) => id === active.id);
+      const newTree = isRecurring
+        ? [...newGroupTree, ...nonRecurringTasks]
+        : [...recurringTasks, ...newGroupTree];
 
-    const newTree = activeIsRecurring
-      ? [...newGroupTree, ...nonRecurringTasks]
-      : [...recurringTasks, ...newGroupTree];
-
-    onReorder(newTree);
-  }
-
-  function handleDragCancel() {
-    resetState();
-  }
-
-  function resetState() {
-    setActiveId(null);
-    setOverId(null);
-    setOffsetLeft(0);
-  }
+      onReorder(newTree);
+    },
+  });
 
   function renderTaskItem(task: (typeof allFullFlattenedItems)[number]) {
     return (
@@ -317,16 +278,7 @@ export function TaskTree({
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      measuring={measuring}
-      onDragStart={handleDragStart}
-      onDragMove={handleDragMove}
-      onDragOver={handleDragOver}
-      onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
-    >
+    <>
       <CollapsibleSection
         title="Recurring"
         open={recurringOpen}
@@ -348,15 +300,6 @@ export function TaskTree({
           {flattenedNonRecurring.map(renderTaskItem)}
         </SortableContext>
       </CollapsibleSection>
-
-      <DragOverlay dropAnimation={dropAnimation}>
-        {activeId && activeItem ? (
-          <TaskItemOverlay
-            task={activeItem}
-            childCount={getChildCount(tasks, activeId as string)}
-          />
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+    </>
   );
 }

@@ -31,6 +31,13 @@ export interface Tag {
   color: TagColor;
 }
 
+export interface TaskList {
+  id: string;
+  name: string;
+  color: TagColor;
+  createdDate: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -46,10 +53,31 @@ export interface Task {
   timeInvestedMs: number;
   archived: boolean;
   tags?: string[];
+  listId?: string;
 }
 
 export interface FlattenedTask extends Task {
   parentId: string | null;
   depth: number;
   index: number;
+}
+
+export interface BackupPreferences {
+  activeListId?: string;
+  todaySortOrder?: string[];
+  tomorrowSortOrder?: string[];
+  collapsedTaskIds?: string[];
+  todayRecurringSectionOpen?: boolean;
+  todayNonRecurringSectionOpen?: boolean;
+  tomorrowRecurringSectionOpen?: boolean;
+  tomorrowNonRecurringSectionOpen?: boolean;
+}
+
+export interface BackupData {
+  version: number;
+  exportedAt: string;
+  tasks: Task[];
+  lists: TaskList[];
+  tags: Tag[];
+  preferences?: BackupPreferences;
 }

@@ -46,5 +46,9 @@ export function useTagStore() {
     setTags((prev) => prev.filter((tag) => tag.id !== id));
   }, []);
 
-  return { tags, addTag, updateTag, deleteTag };
+  const restoreTags = useCallback((snapshot: Tag[]) => {
+    setTags(snapshot);
+  }, []);
+
+  return { tags, addTag, updateTag, deleteTag, restoreTags };
 }

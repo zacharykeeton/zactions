@@ -9,6 +9,13 @@ export const TOMORROW_RECURRING_SECTION_KEY = "tomorrow-section-recurring-open";
 export const TOMORROW_NON_RECURRING_SECTION_KEY = "tomorrow-section-nonrecurring-open";
 export const COLLAPSED_TASKS_KEY = "collapsed-task-ids";
 export const TAGS_STORAGE_KEY = "recursive-todo-tags";
+export const LISTS_STORAGE_KEY = "recursive-todo-lists";
+export const ACTIVE_LIST_KEY = "active-list-id";
+
+export const BACKUP_VERSION = 1;
+
+export const SIDEBAR_DROPPABLE_PREFIX = "sidebar-list-";
+export const SIDEBAR_INBOX_DROPPABLE_ID = "sidebar-inbox";
 
 export const TAG_COLORS: Record<string, { badge: string; dot: string }> = {
   red: {

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { CalendarIcon, Repeat, X } from "lucide-react";
-import type { Task, Tag, Priority, RecurrenceInterval, DayOfWeek, RecurrencePattern } from "@/lib/types";
+import type { Task, TaskList, Tag, Priority, RecurrenceInterval, DayOfWeek, RecurrencePattern } from "@/lib/types";
 import { TAG_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,8 @@ interface TaskFormProps {
   initialData?: Task;
   parentId: string | null;
   availableTags?: Tag[];
+  availableLists?: TaskList[];
+  defaultListId?: string;
   onSubmit: (data: {
     title: string;
     priority: Priority;
@@ -37,6 +39,7 @@ interface TaskFormProps {
     parentId: string | null;
     recurrence?: RecurrencePattern;
     tags?: string[];
+    listId?: string;
   }) => void;
   onCancel: () => void;
 }
@@ -45,6 +48,8 @@ export function TaskForm({
   initialData,
   parentId,
   availableTags = [],
+  availableLists = [],
+  defaultListId,
   onSubmit,
   onCancel,
 }: TaskFormProps) {
@@ -69,6 +74,9 @@ export function TaskForm({
   );
   const [selectedTags, setSelectedTags] = useState<string[]>(
     initialData?.tags ?? []
+  );
+  const [selectedListId, setSelectedListId] = useState<string>(
+    initialData?.listId ?? defaultListId ?? "__inbox__"
   );
 
   const isSubtask = parentId !== null;
@@ -109,6 +117,7 @@ export function TaskForm({
       parentId,
       recurrence,
       tags: selectedTags.length > 0 ? selectedTags : undefined,
+      listId: selectedListId === "__inbox__" ? undefined : selectedListId,
     });
   }
 
@@ -138,6 +147,33 @@ export function TaskForm({
           </SelectContent>
         </Select>
       </div>
+
+      {availableLists.length > 0 && !isSubtask && (
+        <div className="flex flex-col gap-2">
+          <Label>List</Label>
+          <Select value={selectedListId} onValueChange={setSelectedListId}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__inbox__">Inbox</SelectItem>
+              {availableLists.map((list) => (
+                <SelectItem key={list.id} value={list.id}>
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={cn(
+                        "inline-block h-2.5 w-2.5 rounded-full",
+                        TAG_COLORS[list.color]?.dot
+                      )}
+                    />
+                    {list.name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {availableTags.length > 0 && (
         <div className="flex flex-col gap-2">
