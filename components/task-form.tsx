@@ -69,6 +69,9 @@ export function TaskForm({
   const [recurrenceInterval, setRecurrenceInterval] = useState<RecurrenceInterval>(
     initialData?.recurrence?.interval ?? "weekly"
   );
+  const [recurrenceFrequency, setRecurrenceFrequency] = useState(
+    initialData?.recurrence?.frequency ?? 1
+  );
   const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>(
     initialData?.recurrence?.daysOfWeek ?? []
   );
@@ -102,6 +105,7 @@ export function TaskForm({
       isRecurring && !isSubtask
         ? {
             interval: recurrenceInterval,
+            ...(recurrenceFrequency > 1 ? { frequency: recurrenceFrequency } : {}),
             daysOfWeek:
               recurrenceInterval === "weekly" && selectedDays.length > 0
                 ? selectedDays
@@ -259,23 +263,37 @@ export function TaskForm({
 
           {isRecurring && (
             <div className="flex flex-col gap-3 pl-6">
-              <Select
-                value={recurrenceInterval}
-                onValueChange={(v) => {
-                  setRecurrenceInterval(v as RecurrenceInterval);
-                  if (v !== "weekly") setSelectedDays([]);
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="daily">Daily</SelectItem>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="yearly">Yearly</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground shrink-0">Every</span>
+                <Input
+                  type="number"
+                  min={1}
+                  max={99}
+                  value={recurrenceFrequency}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value, 10);
+                    if (!isNaN(v) && v >= 1) setRecurrenceFrequency(v);
+                  }}
+                  className="w-16 text-center"
+                />
+                <Select
+                  value={recurrenceInterval}
+                  onValueChange={(v) => {
+                    setRecurrenceInterval(v as RecurrenceInterval);
+                    if (v !== "weekly") setSelectedDays([]);
+                  }}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">day{recurrenceFrequency !== 1 ? "s" : ""}</SelectItem>
+                    <SelectItem value="weekly">week{recurrenceFrequency !== 1 ? "s" : ""}</SelectItem>
+                    <SelectItem value="monthly">month{recurrenceFrequency !== 1 ? "s" : ""}</SelectItem>
+                    <SelectItem value="yearly">year{recurrenceFrequency !== 1 ? "s" : ""}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
               {recurrenceInterval === "weekly" && (
                 <div className="flex flex-col gap-1.5">

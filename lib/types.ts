@@ -6,6 +6,7 @@ export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 export interface RecurrencePattern {
   interval: RecurrenceInterval;
+  frequency?: number; // how many intervals between recurrences (default 1)
   daysOfWeek?: DayOfWeek[];
 }
 

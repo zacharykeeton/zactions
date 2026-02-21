@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { fastForwardDueDate, getNextDueDate } from './recurrence-utils';
+import { fastForwardDueDate, formatRecurrencePattern, getNextDueDate } from './recurrence-utils';
 import type { RecurrencePattern } from './types';
 
 describe('fastForwardDueDate', () => {
@@ -227,6 +227,183 @@ describe('getNextDueDate vs fastForwardDueDate', () => {
     // Both should return the same result since it's already in the future
     expect(nextDue).toBe('2026-02-18T00:00:00.000Z');
     expect(fastForward).toBe('2026-02-17T00:00:00.000Z'); // Returns unchanged
+  });
+});
+
+describe('frequency > 1 recurrence', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    // Today is Monday Feb 16, 2026
+    vi.setSystemTime(new Date('2026-02-16T00:00:00.000Z'));
+  });
+
+  describe('getNextDueDate with frequency', () => {
+    it('daily frequency=3: advances by 3 days from a recent due date', () => {
+      const pattern: RecurrencePattern = { interval: 'daily', frequency: 3 };
+      const dueDate = '2026-02-15T00:00:00.000Z'; // yesterday
+      const result = getNextDueDate(dueDate, pattern);
+      expect(result).toBe('2026-02-18T00:00:00.000Z'); // +3 days
+    });
+
+    it('daily frequency=3: skips to next valid occurrence when overdue', () => {
+      const pattern: RecurrencePattern = { interval: 'daily', frequency: 3 };
+      // dueDate was Jan 1; occurrences: Jan 1, 4, 7, 10, ... Feb 14, 17
+      const dueDate = '2026-02-14T00:00:00.000Z'; // 2 days ago (valid occurrence)
+      const result = getNextDueDate(dueDate, pattern);
+      // next occurrence after today (Feb 16) is Feb 17
+      expect(result).toBe('2026-02-17T00:00:00.000Z');
+    });
+
+    it('weekly frequency=2 (no specific days): advances by 2 weeks', () => {
+      const pattern: RecurrencePattern = { interval: 'weekly', frequency: 2 };
+      const dueDate = '2026-02-16T00:00:00.000Z'; // today (Mon)
+      const result = getNextDueDate(dueDate, pattern);
+      expect(result).toBe('2026-03-02T00:00:00.000Z'); // +2 weeks
+    });
+
+    it('weekly frequency=2 (no specific days): skips to next valid occurrence when overdue', () => {
+      const pattern: RecurrencePattern = { interval: 'weekly', frequency: 2 };
+      // dueDate was 3 weeks ago; next valid period is 4 weeks from dueDate
+      const dueDate = '2026-01-26T00:00:00.000Z'; // 3 weeks ago (Mon)
+      const result = getNextDueDate(dueDate, pattern);
+      // Occurrences: Jan 26, Feb 9, Feb 23, ...
+      // Today is Feb 16; next after today is Feb 23
+      expect(result).toBe('2026-02-23T00:00:00.000Z');
+    });
+
+    it('weekly frequency=2 with daysOfWeek=[6] (every other Saturday): advances 2 weeks', () => {
+      const pattern: RecurrencePattern = { interval: 'weekly', frequency: 2, daysOfWeek: [6] };
+      // dueDate = last Saturday
+      const dueDate = '2026-02-14T00:00:00.000Z'; // Sat Feb 14
+      const result = getNextDueDate(dueDate, pattern);
+      expect(result).toBe('2026-02-28T00:00:00.000Z'); // Sat Feb 28 (2 weeks later)
+    });
+
+    it('weekly frequency=2 with daysOfWeek=[1,5] (Mon+Fri): returns Fri of same week after Mon', () => {
+      const pattern: RecurrencePattern = { interval: 'weekly', frequency: 2, daysOfWeek: [1, 5] };
+      // dueDate = this Monday (today)
+      const dueDate = '2026-02-16T00:00:00.000Z'; // Mon Feb 16
+      const result = getNextDueDate(dueDate, pattern);
+      // Next in same cycle is Fri Feb 20
+      expect(result).toBe('2026-02-20T00:00:00.000Z');
+    });
+
+    it('weekly frequency=2 with daysOfWeek=[1,5]: jumps 2 weeks after the last day in a cycle', () => {
+      const pattern: RecurrencePattern = { interval: 'weekly', frequency: 2, daysOfWeek: [1, 5] };
+      // dueDate = last Friday (last day in its cycle)
+      const dueDate = '2026-02-13T00:00:00.000Z'; // Fri Feb 13
+      const result = getNextDueDate(dueDate, pattern);
+      // Next cycle starts Mon Feb 23 (Fri + 3 days to Mon + 7 days skip = +10 days)
+      expect(result).toBe('2026-02-23T00:00:00.000Z');
+    });
+
+    it('monthly frequency=2: advances by 2 months', () => {
+      const pattern: RecurrencePattern = { interval: 'monthly', frequency: 2 };
+      const dueDate = '2026-02-15T00:00:00.000Z';
+      const result = getNextDueDate(dueDate, pattern);
+      // date-fns addMonths uses local time, so we check UTC date components
+      const resultDate = new Date(result);
+      expect(resultDate.getUTCMonth()).toBe(3); // April (0-indexed)
+      expect(resultDate.getUTCDate()).toBeLessThanOrEqual(15);
+      expect(new Date(dueDate) < new Date(result)).toBe(true);
+    });
+
+    it('monthly frequency=2: skips to next valid occurrence when overdue', () => {
+      const pattern: RecurrencePattern = { interval: 'monthly', frequency: 2 };
+      // dueDate = Oct 15, 2025; occurrences Oct 15, Dec 15, Feb 15, Apr 15, ...
+      const dueDate = '2025-10-15T00:00:00.000Z';
+      const result = getNextDueDate(dueDate, pattern);
+      // Today Feb 16; Feb 15 is past; next is Apr 15
+      expect(result).toBe('2026-04-15T00:00:00.000Z');
+    });
+
+    it('yearly frequency=2: advances by 2 years', () => {
+      const pattern: RecurrencePattern = { interval: 'yearly', frequency: 2 };
+      const dueDate = '2026-02-15T00:00:00.000Z';
+      const result = getNextDueDate(dueDate, pattern);
+      expect(result).toBe('2028-02-15T00:00:00.000Z');
+    });
+  });
+
+  describe('fastForwardDueDate with frequency', () => {
+    it('daily frequency=3: lands on the most recent valid occurrence', () => {
+      const pattern: RecurrencePattern = { interval: 'daily', frequency: 3 };
+      // dueDate = Jan 1; occurrences: 0, 3, 6, ... 42(Feb12), 45(Feb15), 48(Feb18)
+      // Today is Feb 16 (day 46); floor(46/3)=15 periods; 15*3=45 days = Feb 15
+      const dueDate = '2026-01-01T00:00:00.000Z';
+      const result = fastForwardDueDate(dueDate, pattern);
+      expect(result).toBe('2026-02-15T00:00:00.000Z');
+    });
+
+    it('weekly frequency=2 (no days): skips to most recent valid 2-week cycle', () => {
+      const pattern: RecurrencePattern = { interval: 'weekly', frequency: 2 };
+      // dueDate = Mon Jan 12; occurrences Jan 12, Jan 26, Feb 9, Feb 23, ...
+      // Today is Feb 16 (Mon); most recent occurrence is Feb 9
+      const dueDate = '2026-01-12T00:00:00.000Z';
+      const result = fastForwardDueDate(dueDate, pattern);
+      expect(result).toBe('2026-02-09T00:00:00.000Z');
+    });
+
+    it('weekly frequency=2 with daysOfWeek=[6] (every other Saturday): finds last valid Saturday', () => {
+      const pattern: RecurrencePattern = { interval: 'weekly', frequency: 2, daysOfWeek: [6] };
+      // dueDate = Sat Jan 10; occurrences Jan 10, Jan 24, Feb 7, Feb 21, ...
+      // Today is Feb 16 (Mon); most recent occurrence is Feb 7
+      const dueDate = '2026-01-10T00:00:00.000Z';
+      const result = fastForwardDueDate(dueDate, pattern);
+      expect(result).toBe('2026-02-07T00:00:00.000Z');
+    });
+
+    it('weekly frequency=2 with daysOfWeek=[1,5]: finds last valid occurrence in current cycle', () => {
+      const pattern: RecurrencePattern = { interval: 'weekly', frequency: 2, daysOfWeek: [1, 5] };
+      // dueDate = Mon Jan 12; cycle: Mon Jan 12, Fri Jan 16, Mon Jan 26, Fri Jan 30, Mon Feb 9, Fri Feb 13, ...
+      // Today is Feb 16 (Mon); most recent occurrence is Fri Feb 13
+      const dueDate = '2026-01-12T00:00:00.000Z';
+      const result = fastForwardDueDate(dueDate, pattern);
+      expect(result).toBe('2026-02-13T00:00:00.000Z');
+    });
+
+    it('monthly frequency=2: lands on the most recent valid 2-month occurrence', () => {
+      const pattern: RecurrencePattern = { interval: 'monthly', frequency: 2 };
+      // dueDate = Oct 15, 2025; occurrences Oct 15, Dec 15, Feb 15, Apr 15, ...
+      // Today is Feb 16; most recent occurrence is Feb 15
+      const dueDate = '2025-10-15T00:00:00.000Z';
+      const result = fastForwardDueDate(dueDate, pattern);
+      expect(result).toBe('2026-02-15T00:00:00.000Z');
+    });
+
+    it('yearly frequency=2: lands on the most recent valid 2-year occurrence', () => {
+      const pattern: RecurrencePattern = { interval: 'yearly', frequency: 2 };
+      // dueDate = Feb 15, 2022; occurrences Feb 15 2022, 2024, 2026, ...
+      // Today is Feb 16, 2026; most recent occurrence is Feb 15, 2026
+      const dueDate = '2022-02-15T00:00:00.000Z';
+      const result = fastForwardDueDate(dueDate, pattern);
+      expect(result).toBe('2026-02-15T00:00:00.000Z');
+    });
+  });
+
+  describe('formatRecurrencePattern with frequency', () => {
+    it('formats frequency=1 (or undefined) as before', () => {
+      expect(formatRecurrencePattern({ interval: 'daily' })).toBe('Daily');
+      expect(formatRecurrencePattern({ interval: 'weekly', frequency: 1 })).toBe('Weekly');
+      expect(formatRecurrencePattern({ interval: 'weekly', frequency: 1, daysOfWeek: [6] })).toBe('Weekly (Sat)');
+    });
+
+    it('formats frequency=2 weekly with day as "Every 2 weeks (Sat)"', () => {
+      const pattern: RecurrencePattern = { interval: 'weekly', frequency: 2, daysOfWeek: [6] };
+      expect(formatRecurrencePattern(pattern)).toBe('Every 2 weeks (Sat)');
+    });
+
+    it('formats frequency=3 daily as "Every 3 days"', () => {
+      expect(formatRecurrencePattern({ interval: 'daily', frequency: 3 })).toBe('Every 3 days');
+    });
+
+    it('formats frequency=2 monthly as "Every 2 months"', () => {
+      expect(formatRecurrencePattern({ interval: 'monthly', frequency: 2 })).toBe('Every 2 months');
+    });
+
+    it('formats frequency=2 yearly as "Every 2 years"', () => {
+      expect(formatRecurrencePattern({ interval: 'yearly', frequency: 2 })).toBe('Every 2 years');
+    });
   });
 });
 
