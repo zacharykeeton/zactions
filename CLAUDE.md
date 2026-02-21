@@ -187,3 +187,6 @@ useEffect(() => { setData(loadFromStorage()); }, []);
 - shadcn/ui: `@/components/ui/[component]`
 - Custom components: `@/components/[component]`
 - Hooks: `@/hooks/[hook-name]`
+
+## Auto-Memory
+Proactively update `~/.claude/projects/.../memory/MEMORY.md` when you discover something worth remembering across sessions — gotchas, debugging insights, user preferences, or patterns not already in this file. Don't duplicate what's in CLAUDE.md; only record new learnings.
