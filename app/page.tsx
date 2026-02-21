@@ -33,6 +33,7 @@ import { TodayList } from "@/components/today-list";
 import { ArchivedList } from "@/components/archived-list";
 import { TaskForm } from "@/components/task-form";
 import { TagManager } from "@/components/tag-manager";
+import { ModeToggle } from "@/components/mode-toggle";
 import { AppSidebar, type ActiveListFilter } from "@/components/app-sidebar";
 import {
   Dialog,
@@ -436,12 +437,15 @@ export default function Home() {
                 <SidebarTrigger />
                 <h1 className="text-2xl font-bold tracking-tight">{heading}</h1>
               </div>
-              {sidebarView === "tasks" && (
-                <Button onClick={handleAddRootTask}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Task
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {sidebarView === "tasks" && (
+                  <Button onClick={handleAddRootTask}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Task
+                  </Button>
+                )}
+                <ModeToggle />
+              </div>
             </header>
 
             {sidebarView === "archived" ? (
