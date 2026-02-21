@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { startOfDay, parseISO } from 'date-fns';
-import { getTasksForToday, excludeArchivedTasks, collectArchivedTasks } from './tree-utils';
+import { getTasksForToday, getOptionalTasksForToday, excludeArchivedTasks, collectArchivedTasks } from './tree-utils';
 import type { Task } from './types';
 
 function makeTask(overrides: Partial<Task> = {}): Task {
@@ -11,6 +11,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     priority: 'medium',
     dueDate: null,
     scheduledDate: null,
+    startDate: null,
     completedDate: null,
     createdDate: '2026-02-01',
     children: [],
@@ -151,6 +152,199 @@ describe('getTasksForToday', () => {
       expect(ids).not.toContain('completed-yesterday');
       expect(result).toHaveLength(3);
     });
+  });
+
+  describe('startDate filtering', () => {
+    it('should exclude tasks with a future startDate', () => {
+      const tasks = [
+        makeTask({
+          id: 'future-start',
+          dueDate: '2026-02-20',
+          startDate: '2026-02-25',
+        }),
+      ];
+      const result = getTasksForToday(tasks, today);
+      expect(result).toHaveLength(0);
+    });
+
+    it('should include tasks with a past startDate when due today', () => {
+      const tasks = [
+        makeTask({
+          id: 'past-start',
+          dueDate: '2026-02-20',
+          startDate: '2026-02-15',
+        }),
+      ];
+      const result = getTasksForToday(tasks, today);
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('past-start');
+    });
+
+    it('should include tasks with today startDate when due today', () => {
+      const tasks = [
+        makeTask({
+          id: 'today-start',
+          dueDate: '2026-02-20',
+          startDate: '2026-02-20',
+        }),
+      ];
+      const result = getTasksForToday(tasks, today);
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('today-start');
+    });
+
+    it('should still work for tasks with no startDate (backward compat)', () => {
+      const tasks = [
+        makeTask({
+          id: 'no-start',
+          dueDate: '2026-02-20',
+        }),
+      ];
+      const result = getTasksForToday(tasks, today);
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('no-start');
+    });
+
+    it('should exclude future startDate even when due today', () => {
+      const tasks = [
+        makeTask({
+          id: 'future-start-due-today',
+          dueDate: '2026-02-20',
+          startDate: '2026-02-21',
+        }),
+      ];
+      const result = getTasksForToday(tasks, today);
+      expect(result).toHaveLength(0);
+    });
+
+    it('should still traverse children of future-start tasks', () => {
+      const tasks = [
+        makeTask({
+          id: 'parent-future',
+          startDate: '2026-02-25',
+          children: [
+            makeTask({
+              id: 'child-due-today',
+              dueDate: '2026-02-20',
+            }),
+          ],
+        }),
+      ];
+      const result = getTasksForToday(tasks, today);
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('child-due-today');
+    });
+  });
+});
+
+describe('getOptionalTasksForToday', () => {
+  const today = startOfDay(parseISO('2026-02-20'));
+
+  it('should return available-but-not-due tasks', () => {
+    const tasks = [
+      makeTask({
+        id: 'optional',
+        startDate: '2026-02-18',
+        // no dueDate, no scheduledDate
+      }),
+    ];
+    const result = getOptionalTasksForToday(tasks, today);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('optional');
+  });
+
+  it('should exclude tasks already in main today list (due today)', () => {
+    const tasks = [
+      makeTask({
+        id: 'due-today',
+        startDate: '2026-02-18',
+        dueDate: '2026-02-20',
+      }),
+    ];
+    const result = getOptionalTasksForToday(tasks, today);
+    expect(result).toHaveLength(0);
+  });
+
+  it('should exclude tasks already in main today list (scheduled today)', () => {
+    const tasks = [
+      makeTask({
+        id: 'scheduled-today',
+        startDate: '2026-02-18',
+        scheduledDate: '2026-02-20',
+      }),
+    ];
+    const result = getOptionalTasksForToday(tasks, today);
+    expect(result).toHaveLength(0);
+  });
+
+  it('should exclude tasks already in main today list (overdue)', () => {
+    const tasks = [
+      makeTask({
+        id: 'overdue',
+        startDate: '2026-02-15',
+        dueDate: '2026-02-18',
+      }),
+    ];
+    const result = getOptionalTasksForToday(tasks, today);
+    expect(result).toHaveLength(0);
+  });
+
+  it('should exclude archived tasks', () => {
+    const tasks = [
+      makeTask({
+        id: 'archived-optional',
+        startDate: '2026-02-18',
+        archived: true,
+      }),
+    ];
+    const result = getOptionalTasksForToday(tasks, today);
+    expect(result).toHaveLength(0);
+  });
+
+  it('should exclude completed tasks', () => {
+    const tasks = [
+      makeTask({
+        id: 'completed-optional',
+        startDate: '2026-02-18',
+        completed: true,
+      }),
+    ];
+    const result = getOptionalTasksForToday(tasks, today);
+    expect(result).toHaveLength(0);
+  });
+
+  it('should exclude tasks with future startDate', () => {
+    const tasks = [
+      makeTask({
+        id: 'future-start',
+        startDate: '2026-02-25',
+      }),
+    ];
+    const result = getOptionalTasksForToday(tasks, today);
+    expect(result).toHaveLength(0);
+  });
+
+  it('should exclude tasks without startDate', () => {
+    const tasks = [
+      makeTask({
+        id: 'no-start',
+      }),
+    ];
+    const result = getOptionalTasksForToday(tasks, today);
+    expect(result).toHaveLength(0);
+  });
+
+  it('should include task with past startDate and future due date', () => {
+    const tasks = [
+      makeTask({
+        id: 'future-due',
+        startDate: '2026-02-18',
+        dueDate: '2026-02-25',
+      }),
+    ];
+    const result = getOptionalTasksForToday(tasks, today);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('future-due');
   });
 });
 

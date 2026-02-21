@@ -93,6 +93,12 @@ export function TaskItem({
   const shouldShowTodayBackground = isDueToday || isScheduledToday;
   const shouldShowOverdueBackground = isDueOverdue || isScheduledOverdue;
 
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const hasFutureStartDate =
+    !task.completed && !!task.startDate && task.startDate > todayStr;
+
   return (
     <div
       ref={setNodeRef}
@@ -101,6 +107,7 @@ export function TaskItem({
         "group flex items-center gap-2 rounded-md border border-transparent px-2 py-1.5 hover:border-border",
         !shouldShowTodayBackground && !shouldShowOverdueBackground && "hover:bg-accent/50",
         isDragging && "z-50 opacity-40",
+        !isDragging && hasFutureStartDate && "opacity-40",
         task.completed && "opacity-60",
         shouldShowTodayBackground && "bg-emerald-100 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/40",
         shouldShowOverdueBackground && "bg-red-100 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/40"

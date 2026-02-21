@@ -7,6 +7,7 @@ import {
   Pencil,
   Trash2,
   Calendar,
+  CalendarPlus,
   ClipboardPlus,
   Clock,
   Repeat,
@@ -159,6 +160,18 @@ export function TaskRowContent({
           <ClipboardPlus className="h-3 w-3" />
           {format(new Date(task.createdDate), "MMM d")}
         </span>
+
+        {task.startDate && (
+          <span
+            className={cn(
+              "flex items-center gap-1 text-xs text-muted-foreground",
+              !task.completed && task.startDate > format(new Date(), "yyyy-MM-dd") && "text-blue-600 dark:text-blue-400"
+            )}
+          >
+            <CalendarPlus className="h-3 w-3" />
+            {format(parseISO(task.startDate), "MMM d")}
+          </span>
+        )}
 
         {task.scheduledDate && (
           <span className="flex items-center gap-1 text-xs text-muted-foreground">

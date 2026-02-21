@@ -10,13 +10,14 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import type { Task, Tag } from "@/lib/types";
-import { getTasksForToday, getTodayProgress } from "@/lib/tree-utils";
+import { getTasksForToday, getOptionalTasksForToday, getTodayProgress } from "@/lib/tree-utils";
 import { sortTodayTasks } from "@/lib/today-sort-utils";
 import { useTodaySortOrder } from "@/hooks/use-today-sort-order";
 import {
   TODAY_SORT_ORDER_KEY,
   TODAY_RECURRING_SECTION_KEY,
   TODAY_NON_RECURRING_SECTION_KEY,
+  TODAY_OPTIONAL_SECTION_KEY,
 } from "@/lib/constants";
 import { isSidebarDroppableId } from "@/lib/dnd-utils";
 import { Progress } from "@/components/ui/progress";
@@ -61,6 +62,7 @@ interface TodayListProps {
   storageKey?: string;
   recurringSectionKey?: string;
   nonRecurringSectionKey?: string;
+  optionalSectionKey?: string;
   emptyMessage?: string;
   progressLabel?: string;
   listFilter?: (tasks: Task[]) => Task[];
@@ -83,6 +85,7 @@ export function TodayList({
   storageKey = TODAY_SORT_ORDER_KEY,
   recurringSectionKey = TODAY_RECURRING_SECTION_KEY,
   nonRecurringSectionKey = TODAY_NON_RECURRING_SECTION_KEY,
+  optionalSectionKey = TODAY_OPTIONAL_SECTION_KEY,
   emptyMessage = "Nothing scheduled for today",
   progressLabel = "Today's Progress",
   listFilter,
@@ -139,10 +142,26 @@ export function TodayList({
   const recurringIds = useMemo(() => recurringTasks.map((t) => t.id), [recurringTasks]);
   const nonRecurringIds = useMemo(() => nonRecurringTasks.map((t) => t.id), [nonRecurringTasks]);
 
-  const sortedIds = useMemo(() => sortedTodayTasks.map(({ id }) => id), [sortedTodayTasks]);
+  // Optional tasks: available (startDate <= today) but not due/scheduled today
+  const allOptionalTasks = useMemo(() => getOptionalTasksForToday(tasks, targetDate), [tasks, targetDate]);
+  const optionalTasks = useMemo(
+    () => (listFilter ? listFilter(allOptionalTasks) : allOptionalTasks),
+    [allOptionalTasks, listFilter]
+  );
+  const sortedOptionalTasks = useMemo(
+    () => sortTodayTasks(optionalTasks, sortOrder),
+    [optionalTasks, sortOrder]
+  );
+  const optionalIds = useMemo(() => sortedOptionalTasks.map((t) => t.id), [sortedOptionalTasks]);
+
+  const sortedIds = useMemo(
+    () => [...sortedTodayTasks, ...sortedOptionalTasks].map(({ id }) => id),
+    [sortedTodayTasks, sortedOptionalTasks]
+  );
 
   const [recurringOpen, setRecurringOpen] = useState(() => readSectionState(recurringSectionKey));
   const [nonRecurringOpen, setNonRecurringOpen] = useState(() => readSectionState(nonRecurringSectionKey));
+  const [optionalOpen, setOptionalOpen] = useState(() => readSectionState(optionalSectionKey));
 
   function toggleRecurring() {
     setRecurringOpen((prev) => {
@@ -160,6 +179,14 @@ export function TodayList({
     });
   }
 
+  function toggleOptional() {
+    setOptionalOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem(optionalSectionKey, String(next));
+      return next;
+    });
+  }
+
   useDndMonitor({
     onDragEnd(event: DragEndEvent) {
       const { active, over } = event;
@@ -172,9 +199,13 @@ export function TodayList({
       if (!sortedIds.includes(String(active.id))) return;
 
       // Reject cross-group drops
-      const activeIsRecurring = recurringIds.includes(active.id as string);
-      const overIsRecurring = recurringIds.includes(over.id as string);
-      if (activeIsRecurring !== overIsRecurring) return;
+      function getGroup(id: string): string {
+        if (recurringIds.includes(id)) return "recurring";
+        if (nonRecurringIds.includes(id)) return "nonRecurring";
+        if (optionalIds.includes(id)) return "optional";
+        return "unknown";
+      }
+      if (getGroup(active.id as string) !== getGroup(over.id as string)) return;
 
       const oldIndex = sortedIds.indexOf(active.id as string);
       const newIndex = sortedIds.indexOf(over.id as string);
@@ -184,7 +215,7 @@ export function TodayList({
     },
   });
 
-  if (todayTasks.length === 0) {
+  if (todayTasks.length === 0 && optionalTasks.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed py-16">
         <CalendarCheck className="h-12 w-12 text-muted-foreground" />
@@ -263,6 +294,19 @@ export function TodayList({
           {nonRecurringTasks.map(renderTaskItem)}
         </SortableContext>
       </CollapsibleSection>
+
+      {sortedOptionalTasks.length > 0 && (
+        <CollapsibleSection
+          title="Optional"
+          open={optionalOpen}
+          onToggle={toggleOptional}
+          count={sortedOptionalTasks.length}
+        >
+          <SortableContext items={optionalIds} strategy={verticalListSortingStrategy}>
+            {sortedOptionalTasks.map(renderTaskItem)}
+          </SortableContext>
+        </CollapsibleSection>
+      )}
     </div>
   );
 }

@@ -10,6 +10,8 @@ import {
   TODAY_NON_RECURRING_SECTION_KEY,
   TOMORROW_RECURRING_SECTION_KEY,
   TOMORROW_NON_RECURRING_SECTION_KEY,
+  TODAY_OPTIONAL_SECTION_KEY,
+  TOMORROW_OPTIONAL_SECTION_KEY,
 } from "./constants";
 
 export function createBackupData(
@@ -66,6 +68,8 @@ export function gatherPreferences(): BackupPreferences {
     [TODAY_NON_RECURRING_SECTION_KEY, "todayNonRecurringSectionOpen"],
     [TOMORROW_RECURRING_SECTION_KEY, "tomorrowRecurringSectionOpen"],
     [TOMORROW_NON_RECURRING_SECTION_KEY, "tomorrowNonRecurringSectionOpen"],
+    [TODAY_OPTIONAL_SECTION_KEY, "todayOptionalSectionOpen"],
+    [TOMORROW_OPTIONAL_SECTION_KEY, "tomorrowOptionalSectionOpen"],
   ] as const;
 
   for (const [storageKey, prefKey] of sectionKeys) {
@@ -97,6 +101,8 @@ export function restorePreferences(preferences: BackupPreferences): void {
     [TODAY_NON_RECURRING_SECTION_KEY, "todayNonRecurringSectionOpen"],
     [TOMORROW_RECURRING_SECTION_KEY, "tomorrowRecurringSectionOpen"],
     [TOMORROW_NON_RECURRING_SECTION_KEY, "tomorrowNonRecurringSectionOpen"],
+    [TODAY_OPTIONAL_SECTION_KEY, "todayOptionalSectionOpen"],
+    [TOMORROW_OPTIONAL_SECTION_KEY, "tomorrowOptionalSectionOpen"],
   ] as const;
 
   for (const [storageKey, prefKey] of sectionKeys) {

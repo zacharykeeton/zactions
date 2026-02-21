@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
-import { CalendarIcon, Repeat, X } from "lucide-react";
+import { CalendarIcon, CalendarPlus, Repeat, X } from "lucide-react";
 import type { Task, TaskList, Tag, Priority, RecurrenceInterval, DayOfWeek, RecurrencePattern } from "@/lib/types";
 import { TAG_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -36,6 +36,7 @@ interface TaskFormProps {
     priority: Priority;
     dueDate: string | null;
     scheduledDate: string | null;
+    startDate: string | null;
     parentId: string | null;
     recurrence?: RecurrencePattern;
     tags?: string[];
@@ -63,6 +64,10 @@ export function TaskForm({
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>(
     initialData?.scheduledDate ? parseISO(initialData.scheduledDate) : undefined
   );
+  const [startDate, setStartDate] = useState<Date | undefined>(
+    initialData?.startDate ? parseISO(initialData.startDate) : undefined
+  );
+  const [startDateOpen, setStartDateOpen] = useState(false);
   const [dueDateOpen, setDueDateOpen] = useState(false);
   const [scheduledDateOpen, setScheduledDateOpen] = useState(false);
   const [isRecurring, setIsRecurring] = useState(!!initialData?.recurrence);
@@ -118,6 +123,7 @@ export function TaskForm({
       priority,
       dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : null,
       scheduledDate: scheduledDate ? format(scheduledDate, "yyyy-MM-dd") : null,
+      startDate: startDate ? format(startDate, "yyyy-MM-dd") : null,
       parentId,
       recurrence,
       tags: selectedTags.length > 0 ? selectedTags : undefined,
@@ -203,6 +209,46 @@ export function TaskForm({
           </div>
         </div>
       )}
+
+      <div className="flex flex-col gap-2">
+        <Label>Start Date</Label>
+        <div className="relative">
+          <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full justify-start text-left font-normal",
+                  startDate && "pr-8",
+                  !startDate && "text-muted-foreground"
+                )}
+              >
+                <CalendarPlus className="mr-2 h-4 w-4" />
+                {startDate ? format(startDate, "PPP") : "Pick a date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={startDate}
+                onSelect={(date) => {
+                  setStartDate(date ?? undefined);
+                  setStartDateOpen(false);
+                }}
+              />
+            </PopoverContent>
+          </Popover>
+          {startDate && (
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground opacity-50 hover:opacity-100"
+              onClick={() => setStartDate(undefined)}
+            >
+              <X className="size-4" />
+            </button>
+          )}
+        </div>
+      </div>
 
       <div className="flex flex-col gap-2">
         <Label>Due Date</Label>

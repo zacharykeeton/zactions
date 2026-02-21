@@ -54,6 +54,7 @@ import {
   TOMORROW_SORT_ORDER_KEY,
   TOMORROW_RECURRING_SECTION_KEY,
   TOMORROW_NON_RECURRING_SECTION_KEY,
+  TOMORROW_OPTIONAL_SECTION_KEY,
 } from "@/lib/constants";
 
 const measuring = {
@@ -286,6 +287,7 @@ export default function Home() {
     priority: Priority;
     dueDate: string | null;
     scheduledDate: string | null;
+    startDate: string | null;
     parentId: string | null;
     recurrence?: RecurrencePattern;
     tags?: string[];
@@ -297,6 +299,7 @@ export default function Home() {
         priority: data.priority,
         dueDate: data.dueDate,
         scheduledDate: data.scheduledDate,
+        startDate: data.startDate,
         recurrence: data.recurrence,
         tags: data.tags,
         listId: data.listId,
@@ -307,6 +310,7 @@ export default function Home() {
         data.priority,
         data.dueDate,
         data.scheduledDate,
+        data.startDate,
         data.parentId,
         data.recurrence,
         data.tags,
@@ -541,6 +545,7 @@ export default function Home() {
                     storageKey={TOMORROW_SORT_ORDER_KEY}
                     recurringSectionKey={TOMORROW_RECURRING_SECTION_KEY}
                     nonRecurringSectionKey={TOMORROW_NON_RECURRING_SECTION_KEY}
+                    optionalSectionKey={TOMORROW_OPTIONAL_SECTION_KEY}
                     emptyMessage="Nothing scheduled for tomorrow"
                     progressLabel="Tomorrow's Progress"
                     onToggle={handleToggleWithTimer}

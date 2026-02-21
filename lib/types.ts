@@ -46,6 +46,7 @@ export interface Task {
   priority: Priority;
   dueDate: string | null;
   scheduledDate: string | null;
+  startDate: string | null;
   completedDate: string | null;
   createdDate: string;
   children: Task[];
@@ -72,6 +73,8 @@ export interface BackupPreferences {
   todayNonRecurringSectionOpen?: boolean;
   tomorrowRecurringSectionOpen?: boolean;
   tomorrowNonRecurringSectionOpen?: boolean;
+  todayOptionalSectionOpen?: boolean;
+  tomorrowOptionalSectionOpen?: boolean;
 }
 
 export interface BackupData {

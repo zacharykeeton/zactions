@@ -23,6 +23,7 @@ function migrateTask(task: Task): Task {
 
   return {
     ...task,
+    startDate: task.startDate ?? null,
     timeInvestedMs: task.timeInvestedMs ?? 0,
     archived: task.archived ?? false,
     completionHistory,
@@ -85,6 +86,7 @@ export function useTaskStore() {
       priority: Priority,
       dueDate: string | null,
       scheduledDate: string | null,
+      startDate: string | null,
       parentId: string | null,
       recurrence?: RecurrencePattern,
       tags?: string[],
@@ -102,6 +104,7 @@ export function useTaskStore() {
         priority,
         dueDate,
         scheduledDate,
+        startDate,
         completedDate: null,
         createdDate: new Date().toISOString(),
         children: [],

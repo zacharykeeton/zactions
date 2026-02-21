@@ -155,9 +155,18 @@ export function getDragDepthIds(
 
 export function getTasksForToday(tasks: Task[], today: Date): Task[] {
   const results: Task[] = [];
+  // Build a YYYY-MM-DD string for today for startDate comparison
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+
   function collect(items: Task[]) {
     for (const task of items) {
       if (task.archived) continue;
+      // Exclude tasks with a future start date
+      if (task.startDate && task.startDate > todayStr) {
+        collect(task.children);
+        continue;
+      }
       // Exclude tasks completed before today
       if (task.completed && task.completedDate && isBefore(parseISO(task.completedDate), today)) {
         collect(task.children);
@@ -168,6 +177,46 @@ export function getTasksForToday(tasks: Task[], today: Date): Task[] {
       const isPastDue = task.dueDate && !task.completed && isBefore(parseISO(task.dueDate), today);
       const isPastScheduled = task.scheduledDate && !task.completed && isBefore(parseISO(task.scheduledDate), today);
       if (isDueToday || isScheduledToday || isPastDue || isPastScheduled) {
+        results.push({ ...task, children: [] });
+      }
+      collect(task.children);
+    }
+  }
+  collect(tasks);
+  return results;
+}
+
+/**
+ * Collect tasks that have become available (startDate <= today) but are NOT
+ * due/scheduled today and NOT overdue — they're "optional" tasks the user
+ * could work on.
+ */
+export function getOptionalTasksForToday(tasks: Task[], today: Date): Task[] {
+  const results: Task[] = [];
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+
+  function collect(items: Task[]) {
+    for (const task of items) {
+      if (task.archived) {
+        continue;
+      }
+      if (task.completed) {
+        collect(task.children);
+        continue;
+      }
+      // Must have a startDate that is <= today
+      if (!task.startDate || task.startDate > todayStr) {
+        collect(task.children);
+        continue;
+      }
+      // Exclude if due/scheduled today or overdue (those are in the main list)
+      const isDueToday = task.dueDate && isSameDay(parseISO(task.dueDate), today);
+      const isScheduledToday = task.scheduledDate && isSameDay(parseISO(task.scheduledDate), today);
+      const isPastDue = task.dueDate && isBefore(parseISO(task.dueDate), today);
+      const isPastScheduled = task.scheduledDate && isBefore(parseISO(task.scheduledDate), today);
+
+      if (!isDueToday && !isScheduledToday && !isPastDue && !isPastScheduled) {
         results.push({ ...task, children: [] });
       }
       collect(task.children);
