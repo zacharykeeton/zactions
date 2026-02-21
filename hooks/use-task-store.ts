@@ -217,8 +217,37 @@ export function useTaskStore() {
     setTasks(snapshot);
   }, []);
 
-  const reorderTasks = useCallback((newTasks: Task[]) => {
-    setTasks(newTasks);
+  const reorderTasks = useCallback((reorderedActiveTasks: Task[]) => {
+    setTasks((prev) => {
+      // Collect archived tasks from previous state, keyed by parent ID.
+      // excludeArchivedTasks strips these at every level before handing
+      // the tree to TaskTree, so we must reinsert them after reorder.
+      const archivedByParent = new Map<string | null, Task[]>();
+      function collectArchived(items: Task[], parentId: string | null) {
+        for (const item of items) {
+          if (item.archived) {
+            const list = archivedByParent.get(parentId) || [];
+            list.push(item);
+            archivedByParent.set(parentId, list);
+          } else {
+            collectArchived(item.children, item.id);
+          }
+        }
+      }
+      collectArchived(prev, null);
+
+      function reinsert(items: Task[], parentId: string | null): Task[] {
+        const result = items.map((item) => ({
+          ...item,
+          children: reinsert(item.children, item.id),
+        }));
+        const archived = archivedByParent.get(parentId);
+        if (archived) result.push(...archived);
+        return result;
+      }
+
+      return reinsert(reorderedActiveTasks, null);
+    });
   }, []);
 
   const archiveTask = useCallback((id: string) => {
