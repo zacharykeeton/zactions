@@ -20,6 +20,7 @@ import {
   TODAY_OPTIONAL_SECTION_KEY,
 } from "@/lib/constants";
 import { isSidebarDroppableId } from "@/lib/dnd-utils";
+import { getBlockingTask } from "@/lib/dependency-utils";
 import { Progress } from "@/components/ui/progress";
 import { TodayTaskItem } from "@/components/today-task-item";
 
@@ -234,6 +235,7 @@ export function TodayList({
     const displayTimeMs = isTimerActive
       ? task.timeInvestedMs + currentElapsedMs
       : task.timeInvestedMs;
+    const blockingTask = getBlockingTask(tasks, task);
 
     return (
       <TodayTaskItem
@@ -250,6 +252,7 @@ export function TodayList({
         onStartTimer={onStartTimer}
         onPauseTimer={onPauseTimer}
         tagMap={tagMap}
+        blockingTaskTitle={blockingTask?.title}
       />
     );
   }

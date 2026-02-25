@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
-import { CalendarIcon, CalendarPlus, Repeat, X } from "lucide-react";
+import { CalendarIcon, CalendarPlus, Check, ChevronsUpDown, Link, Repeat, X } from "lucide-react";
 import type { Task, TaskList, Tag, Priority, RecurrenceInterval, DayOfWeek, RecurrencePattern } from "@/lib/types";
 import { TAG_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -24,12 +24,21 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 interface TaskFormProps {
   initialData?: Task;
   parentId: string | null;
   availableTags?: Tag[];
   availableLists?: TaskList[];
+  availableDependencies?: Task[];
   defaultListId?: string;
   onSubmit: (data: {
     title: string;
@@ -41,6 +50,7 @@ interface TaskFormProps {
     recurrence?: RecurrencePattern;
     tags?: string[];
     listId?: string;
+    dependsOn?: string[];
   }) => void;
   onCancel: () => void;
 }
@@ -50,6 +60,7 @@ export function TaskForm({
   parentId,
   availableTags = [],
   availableLists = [],
+  availableDependencies = [],
   defaultListId,
   onSubmit,
   onCancel,
@@ -86,6 +97,10 @@ export function TaskForm({
   const [selectedListId, setSelectedListId] = useState<string>(
     initialData?.listId ?? defaultListId ?? "__inbox__"
   );
+  const [selectedDependency, setSelectedDependency] = useState<string | undefined>(
+    initialData?.dependsOn?.[0]
+  );
+  const [depPickerOpen, setDepPickerOpen] = useState(false);
 
   const isSubtask = parentId !== null;
   const canSubmit = title.trim() && !(isRecurring && !dueDate);
@@ -128,6 +143,7 @@ export function TaskForm({
       recurrence,
       tags: selectedTags.length > 0 ? selectedTags : undefined,
       listId: selectedListId === "__inbox__" ? undefined : selectedListId,
+      dependsOn: selectedDependency ? [selectedDependency] : undefined,
     });
   }
 
@@ -161,7 +177,10 @@ export function TaskForm({
       {availableLists.length > 0 && !isSubtask && (
         <div className="flex flex-col gap-2">
           <Label>List</Label>
-          <Select value={selectedListId} onValueChange={setSelectedListId}>
+          <Select value={selectedListId} onValueChange={(v) => {
+            setSelectedListId(v);
+            setSelectedDependency(undefined); // deps are same-list only
+          }}>
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -207,6 +226,76 @@ export function TaskForm({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {availableDependencies.length > 0 && !isSubtask && (
+        <div className="flex flex-col gap-2">
+          <Label>Depends On</Label>
+          <Popover open={depPickerOpen} onOpenChange={setDepPickerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={depPickerOpen}
+                className={cn(
+                  "w-full justify-between text-left font-normal",
+                  !selectedDependency && "text-muted-foreground"
+                )}
+              >
+                <span className="flex items-center gap-2 truncate">
+                  <Link className="h-4 w-4 shrink-0" />
+                  {selectedDependency
+                    ? availableDependencies.find((t) => t.id === selectedDependency)?.title ?? "Unknown task"
+                    : "None (no dependency)"}
+                </span>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Search tasks..." />
+                <CommandList>
+                  <CommandEmpty>No tasks found.</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem
+                      value="__none__"
+                      onSelect={() => {
+                        setSelectedDependency(undefined);
+                        setDepPickerOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          !selectedDependency ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      None (no dependency)
+                    </CommandItem>
+                    {availableDependencies.map((dep) => (
+                      <CommandItem
+                        key={dep.id}
+                        value={dep.title}
+                        onSelect={() => {
+                          setSelectedDependency(dep.id);
+                          setDepPickerOpen(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            selectedDependency === dep.id ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        <span className="truncate">{dep.title}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
       )}
 

@@ -30,6 +30,7 @@ interface TaskItemProps {
   isCollapsed?: boolean;
   onToggleCollapse?: (id: string) => void;
   tagMap?: Record<string, Tag>;
+  blockingTaskTitle?: string;
 }
 
 export function TaskItem({
@@ -50,6 +51,7 @@ export function TaskItem({
   isCollapsed,
   onToggleCollapse,
   tagMap,
+  blockingTaskTitle,
 }: TaskItemProps) {
   const {
     attributes,
@@ -151,6 +153,7 @@ export function TaskItem({
         displayTimeMs={displayTimeMs}
         onStartTimer={onStartTimer}
         onPauseTimer={onPauseTimer}
+        blockingTaskTitle={blockingTaskTitle}
       />
     </div>
   );

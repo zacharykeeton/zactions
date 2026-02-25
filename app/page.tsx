@@ -49,6 +49,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import type { Task, Priority, RecurrencePattern } from "@/lib/types";
+import { getEligibleDependencies } from "@/lib/dependency-utils";
 import {
   ACTIVE_LIST_KEY,
   TOMORROW_SORT_ORDER_KEY,
@@ -282,6 +283,12 @@ export default function Home() {
     ? activeFilter
     : undefined;
 
+  // Compute eligible dependencies for the task being edited
+  const availableDependencies = useMemo(() => {
+    if (!editingTask) return [];
+    return getEligibleDependencies(tasks, editingTask.id, editingTask.listId);
+  }, [editingTask, tasks]);
+
   function handleFormSubmit(data: {
     title: string;
     priority: Priority;
@@ -292,8 +299,11 @@ export default function Home() {
     recurrence?: RecurrencePattern;
     tags?: string[];
     listId?: string;
+    dependsOn?: string[];
   }) {
     if (editingTask) {
+      // If list changed, clear dependencies (same-list only)
+      const listChanged = editingTask.listId !== data.listId;
       updateTask(editingTask.id, {
         title: data.title,
         priority: data.priority,
@@ -303,6 +313,7 @@ export default function Home() {
         recurrence: data.recurrence,
         tags: data.tags,
         listId: data.listId,
+        dependsOn: listChanged ? undefined : data.dependsOn,
       });
     } else {
       addTask(
@@ -314,7 +325,8 @@ export default function Home() {
         data.parentId,
         data.recurrence,
         data.tags,
-        data.listId
+        data.listId,
+        data.dependsOn
       );
     }
     setDialogOpen(false);
@@ -384,7 +396,7 @@ export default function Home() {
       if (targetListId === currentListId) return;
       if (!targetListId && !currentListId) return;
 
-      updateTask(taskId, { listId: targetListId });
+      updateTask(taskId, { listId: targetListId, dependsOn: undefined });
 
       const targetName = targetListId
         ? lists.find((l) => l.id === targetListId)?.name ?? "list"
@@ -500,6 +512,7 @@ export default function Home() {
                   ) : (
                     <TaskTree
                       tasks={filteredTasks}
+                      allTasks={tasks}
                       onReorder={reorderTasks}
                       onToggle={handleToggleWithTimer}
                       onDelete={handleDeleteWithTimer}
@@ -580,6 +593,7 @@ export default function Home() {
                   parentId={editingTask ? null : parentIdForNew}
                   availableTags={tags}
                   availableLists={lists}
+                  availableDependencies={availableDependencies}
                   defaultListId={defaultListId}
                   onSubmit={handleFormSubmit}
                   onCancel={() => setDialogOpen(false)}

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import type { Task, Priority, RecurrencePattern, CompletionRecord } from "@/lib/types";
 import { removeItem, findItemDeep } from "@/lib/tree-utils";
+import { isTaskBlocked } from "@/lib/dependency-utils";
 import { getNextDueDate, fastForwardDueDate } from "@/lib/recurrence-utils";
 import { LOCAL_STORAGE_KEY } from "@/lib/constants";
 
@@ -29,6 +30,18 @@ function migrateTask(task: Task): Task {
     completionHistory,
     children: task.children.map(migrateTask),
   };
+}
+
+/** Recursively strip a deleted task's ID from all dependsOn arrays. */
+function removeDependencyRef(items: Task[], depId: string): Task[] {
+  return items.map((item) => {
+    const newDeps = item.dependsOn?.filter((id) => id !== depId);
+    return {
+      ...item,
+      dependsOn: newDeps && newDeps.length > 0 ? newDeps : undefined,
+      children: removeDependencyRef(item.children, depId),
+    };
+  });
 }
 
 function setArchivedDeep(items: Task[], archived: boolean): Task[] {
@@ -90,7 +103,8 @@ export function useTaskStore() {
       parentId: string | null,
       recurrence?: RecurrencePattern,
       tags?: string[],
-      listId?: string
+      listId?: string,
+      dependsOn?: string[]
     ) => {
       // Recurring tasks must have a due date and cannot be subtasks
       if (recurrence && (!dueDate || parentId !== null)) {
@@ -114,6 +128,7 @@ export function useTaskStore() {
         archived: false,
         tags,
         listId,
+        dependsOn,
       };
 
       if (parentId === null) {
@@ -165,7 +180,7 @@ export function useTaskStore() {
   );
 
   const deleteTask = useCallback((id: string) => {
-    setTasks((prev) => removeItem(prev, id));
+    setTasks((prev) => removeDependencyRef(removeItem(prev, id), id));
   }, []);
 
   const toggleTask = useCallback((id: string) => {
@@ -173,6 +188,9 @@ export function useTaskStore() {
       const task = findItemDeep(prev, id);
       if (!task) return prev;
       const newCompleted = !task.completed;
+
+      // Defense-in-depth: prevent completing a blocked task
+      if (newCompleted && isTaskBlocked(prev, task)) return prev;
 
       // Recurring task: reset in place with advanced due date
       if (newCompleted && task.recurrence && task.dueDate) {

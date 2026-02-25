@@ -19,6 +19,7 @@ import {
   CheckCheck,
 } from "lucide-react";
 import confetti from "canvas-confetti";
+import { toast } from "sonner";
 import { formatRecurrencePattern } from "@/lib/recurrence-utils";
 import { priorityColors, TAG_COLORS } from "@/lib/constants";
 import type { Task, Tag } from "@/lib/types";
@@ -43,6 +44,7 @@ interface TaskRowContentProps {
   displayTimeMs: number;
   onStartTimer: (taskId: string) => void;
   onPauseTimer: () => void;
+  blockingTaskTitle?: string;
 }
 
 export function TaskRowContent({
@@ -59,10 +61,17 @@ export function TaskRowContent({
   displayTimeMs,
   onStartTimer,
   onPauseTimer,
+  blockingTaskTitle,
 }: TaskRowContentProps) {
   const checkboxRef = useRef<HTMLButtonElement>(null);
 
+  const isBlocked = !task.completed && !!blockingTaskTitle;
+
   const handleToggle = useCallback(() => {
+    if (isBlocked) {
+      toast.info(`This task is blocked by "${blockingTaskTitle}"`);
+      return;
+    }
     if (!task.completed && checkboxRef.current) {
       const rect = checkboxRef.current.getBoundingClientRect();
       const x = (rect.left + rect.width / 2) / window.innerWidth;
@@ -78,7 +87,7 @@ export function TaskRowContent({
       playCompletionSound();
     }
     onToggle(task.id);
-  }, [task.completed, task.id, onToggle]);
+  }, [task.completed, task.id, onToggle, isBlocked, blockingTaskTitle]);
 
   const isOverdue =
     task.dueDate &&
@@ -101,7 +110,7 @@ export function TaskRowContent({
         ref={checkboxRef}
         checked={task.completed}
         onCheckedChange={handleToggle}
-        className="shrink-0"
+        className={cn("shrink-0", isBlocked && "opacity-50 cursor-not-allowed")}
       />
 
       <span
@@ -114,6 +123,15 @@ export function TaskRowContent({
       </span>
 
       <div className="flex shrink-0 items-center gap-1.5">
+        {isBlocked && (
+          <Badge
+            variant="outline"
+            className="text-xs border-orange-400 text-orange-600 dark:border-orange-500 dark:text-orange-400"
+          >
+            Blocked
+          </Badge>
+        )}
+
         {tagMap && task.tags?.map((tagId) => {
           const tag = tagMap[tagId];
           if (!tag) return null;

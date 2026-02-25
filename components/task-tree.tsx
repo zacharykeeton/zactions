@@ -21,6 +21,7 @@ import {
 } from "@/lib/tree-utils";
 import { INDENTATION_WIDTH, COLLAPSED_TASKS_KEY } from "@/lib/constants";
 import { isSidebarDroppableId } from "@/lib/dnd-utils";
+import { getBlockingTask } from "@/lib/dependency-utils";
 import { TaskItem } from "./task-item";
 
 const RECURRING_SECTION_KEY = "task-section-recurring-open";
@@ -80,6 +81,7 @@ function CollapsibleSection({ title, open, onToggle, children, count }: Collapsi
 
 interface TaskTreeProps {
   tasks: Task[];
+  allTasks: Task[];
   onReorder: (tasks: Task[]) => void;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
@@ -99,6 +101,7 @@ interface TaskTreeProps {
 
 export function TaskTree({
   tasks,
+  allTasks,
   onReorder,
   onToggle,
   onDelete,
@@ -245,6 +248,7 @@ export function TaskTree({
   });
 
   function renderTaskItem(task: (typeof allFullFlattenedItems)[number]) {
+    const blockingTask = getBlockingTask(allTasks, task);
     return (
       <TaskItem
         key={task.id}
@@ -273,6 +277,7 @@ export function TaskTree({
         isCollapsed={collapsedIds.has(task.id)}
         onToggleCollapse={toggleCollapsed}
         tagMap={tagMap}
+        blockingTaskTitle={blockingTask?.title}
       />
     );
   }

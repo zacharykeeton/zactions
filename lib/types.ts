@@ -56,6 +56,7 @@ export interface Task {
   archived: boolean;
   tags?: string[];
   listId?: string;
+  dependsOn?: string[];
 }
 
 export interface FlattenedTask extends Task {

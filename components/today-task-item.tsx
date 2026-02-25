@@ -22,6 +22,7 @@ interface TodayTaskItemProps {
   onStartTimer: (taskId: string) => void;
   onPauseTimer: () => void;
   tagMap?: Record<string, Tag>;
+  blockingTaskTitle?: string;
 }
 
 export function TodayTaskItem({
@@ -37,6 +38,7 @@ export function TodayTaskItem({
   onStartTimer,
   onPauseTimer,
   tagMap,
+  blockingTaskTitle,
 }: TodayTaskItemProps) {
   const {
     attributes,
@@ -104,6 +106,7 @@ export function TodayTaskItem({
         displayTimeMs={displayTimeMs}
         onStartTimer={onStartTimer}
         onPauseTimer={onPauseTimer}
+        blockingTaskTitle={blockingTaskTitle}
       />
     </div>
   );
