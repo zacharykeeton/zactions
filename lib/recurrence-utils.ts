@@ -11,6 +11,14 @@ import {
 } from "date-fns";
 import type { RecurrencePattern, DayOfWeek } from "./types";
 
+/** Format a UTC Date as a YYYY-MM-DD string, matching how dates are stored in tasks. */
+function formatUTCDate(date: Date): string {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export function getNextDueDate(
   currentDueDate: string,
   pattern: RecurrencePattern
@@ -21,13 +29,13 @@ export function getNextDueDate(
 
   switch (pattern.interval) {
     case "daily":
-      return getNextDaily(dueDate, today, freq).toISOString();
+      return formatUTCDate(getNextDaily(dueDate, today, freq));
     case "weekly":
-      return getNextWeekly(dueDate, today, pattern.daysOfWeek, freq).toISOString();
+      return formatUTCDate(getNextWeekly(dueDate, today, pattern.daysOfWeek, freq));
     case "monthly":
-      return getNextMonthly(dueDate, today, freq).toISOString();
+      return formatUTCDate(getNextMonthly(dueDate, today, freq));
     case "yearly":
-      return getNextYearly(dueDate, today, freq).toISOString();
+      return formatUTCDate(getNextYearly(dueDate, today, freq));
   }
 }
 
@@ -45,22 +53,22 @@ export function fastForwardDueDate(
   const dueDateUTC = Date.UTC(dueDate.getUTCFullYear(), dueDate.getUTCMonth(), dueDate.getUTCDate());
   const todayUTC = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
 
-  // If already at or past today, return current due date
+  // If already at or past today, return current due date (normalized to YYYY-MM-DD)
   if (dueDateUTC >= todayUTC) {
-    return currentDueDate;
+    return formatUTCDate(dueDate);
   }
 
   const freq = pattern.frequency ?? 1;
 
   switch (pattern.interval) {
     case "daily":
-      return fastForwardDaily(dueDate, today, freq).toISOString();
+      return formatUTCDate(fastForwardDaily(dueDate, today, freq));
     case "weekly":
-      return fastForwardWeekly(dueDate, today, pattern.daysOfWeek, freq).toISOString();
+      return formatUTCDate(fastForwardWeekly(dueDate, today, pattern.daysOfWeek, freq));
     case "monthly":
-      return fastForwardMonthly(dueDate, today, freq).toISOString();
+      return formatUTCDate(fastForwardMonthly(dueDate, today, freq));
     case "yearly":
-      return fastForwardYearly(dueDate, today, freq).toISOString();
+      return formatUTCDate(fastForwardYearly(dueDate, today, freq));
   }
 }
 

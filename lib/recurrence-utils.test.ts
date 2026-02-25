@@ -15,31 +15,31 @@ describe('fastForwardDueDate', () => {
     it('should fast forward from 2 days ago to today', () => {
       const dueDate = '2026-02-14T00:00:00.000Z'; // Feb 14
       const result = fastForwardDueDate(dueDate, dailyPattern);
-      expect(result).toBe('2026-02-16T00:00:00.000Z'); // Feb 16 (today)
+      expect(result).toBe('2026-02-16'); // Feb 16 (today)
     });
 
     it('should fast forward from a week ago to today', () => {
       const dueDate = '2026-02-09T00:00:00.000Z'; // Feb 9
       const result = fastForwardDueDate(dueDate, dailyPattern);
-      expect(result).toBe('2026-02-16T00:00:00.000Z'); // Feb 16 (today)
+      expect(result).toBe('2026-02-16'); // Feb 16 (today)
     });
 
     it('should fast forward from a long time ago to today', () => {
       const dueDate = '2026-01-01T00:00:00.000Z'; // Jan 1
       const result = fastForwardDueDate(dueDate, dailyPattern);
-      expect(result).toBe('2026-02-16T00:00:00.000Z'); // Feb 16 (today)
+      expect(result).toBe('2026-02-16'); // Feb 16 (today)
     });
 
     it('should return current date if due date is today', () => {
       const dueDate = '2026-02-16T00:00:00.000Z'; // Feb 16 (today)
       const result = fastForwardDueDate(dueDate, dailyPattern);
-      expect(result).toBe('2026-02-16T00:00:00.000Z');
+      expect(result).toBe('2026-02-16');
     });
 
     it('should return current date if due date is in the future', () => {
       const dueDate = '2026-02-17T00:00:00.000Z'; // Feb 17 (tomorrow)
       const result = fastForwardDueDate(dueDate, dailyPattern);
-      expect(result).toBe('2026-02-17T00:00:00.000Z');
+      expect(result).toBe('2026-02-17');
     });
   });
 
@@ -49,19 +49,19 @@ describe('fastForwardDueDate', () => {
     it('should fast forward from last week to this week (same day)', () => {
       const dueDate = '2026-02-09T00:00:00.000Z'; // Feb 9 (Mon)
       const result = fastForwardDueDate(dueDate, weeklyPattern);
-      expect(result).toBe('2026-02-16T00:00:00.000Z'); // Feb 16 (Mon, today)
+      expect(result).toBe('2026-02-16'); // Feb 16 (Mon, today)
     });
 
     it('should fast forward multiple weeks', () => {
       const dueDate = '2026-01-19T00:00:00.000Z'; // Jan 19 (Mon, 4 weeks ago)
       const result = fastForwardDueDate(dueDate, weeklyPattern);
-      expect(result).toBe('2026-02-16T00:00:00.000Z'); // Feb 16 (Mon, today)
+      expect(result).toBe('2026-02-16'); // Feb 16 (Mon, today)
     });
 
     it('should return current date if due date is in current week', () => {
       const dueDate = '2026-02-16T00:00:00.000Z'; // Feb 16 (today)
       const result = fastForwardDueDate(dueDate, weeklyPattern);
-      expect(result).toBe('2026-02-16T00:00:00.000Z');
+      expect(result).toBe('2026-02-16');
     });
   });
 
@@ -74,7 +74,7 @@ describe('fastForwardDueDate', () => {
       };
       const dueDate = '2026-02-09T00:00:00.000Z'; // Feb 9 (last Monday)
       const result = fastForwardDueDate(dueDate, pattern);
-      expect(result).toBe('2026-02-16T00:00:00.000Z'); // Today (Monday)
+      expect(result).toBe('2026-02-16'); // Today (Monday)
     });
 
     it('should return most recent scheduled day if today is not scheduled', () => {
@@ -85,10 +85,8 @@ describe('fastForwardDueDate', () => {
       };
       const dueDate = '2026-02-01T00:00:00.000Z'; // Feb 1 (Sunday)
       const result = fastForwardDueDate(dueDate, pattern);
-      // Should return Feb 15 (Sunday, yesterday) or Feb 14 (Saturday)
-      const resultDate = new Date(result);
-      expect(resultDate.getDay()).toBeOneOf([0, 6]); // Sun or Sat
-      expect(resultDate <= new Date('2026-02-16T00:00:00.000Z')).toBe(true);
+      // Should return Feb 15 (Sunday) — most recent scheduled day <= today
+      expect(result).toBe('2026-02-15');
     });
 
     it('should handle multiple scheduled days in the week', () => {
@@ -99,10 +97,8 @@ describe('fastForwardDueDate', () => {
       };
       const dueDate = '2026-02-04T00:00:00.000Z'; // Feb 4 (Tuesday)
       const result = fastForwardDueDate(dueDate, pattern);
-      const resultDate = new Date(result);
-      // Should be either Thursday Feb 13 or earlier scheduled day
-      expect(resultDate <= new Date('2026-02-16T00:00:00.000Z')).toBe(true);
-      expect([2, 4]).toContain(resultDate.getUTCDay());
+      // Most recent Tue or Thu before today (Feb 16): Thu Feb 12
+      expect(result).toBe('2026-02-12');
     });
 
     it('should handle edge case with no recent scheduled days', () => {
@@ -113,9 +109,8 @@ describe('fastForwardDueDate', () => {
       };
       const dueDate = '2026-01-01T00:00:00.000Z'; // Jan 1
       const result = fastForwardDueDate(dueDate, pattern);
-      // Should find the most recent Tuesday or fallback to today
-      const resultDate = new Date(result);
-      expect(resultDate <= new Date('2026-02-16T00:00:00.000Z')).toBe(true);
+      // Most recent Tuesday before today (Feb 16): Tue Feb 10
+      expect(result).toBe('2026-02-10');
     });
   });
 
@@ -125,29 +120,26 @@ describe('fastForwardDueDate', () => {
     it('should fast forward to current month if date has passed', () => {
       const dueDate = '2026-01-15T00:00:00.000Z'; // Jan 15
       const result = fastForwardDueDate(dueDate, monthlyPattern);
-      expect(result).toBe('2026-02-15T00:00:00.000Z'); // Feb 15
+      expect(result).toBe('2026-02-15'); // Feb 15
     });
 
     it('should fast forward to next month if date is still ahead in current month', () => {
       const dueDate = '2026-02-20T00:00:00.000Z'; // Feb 20 (future)
       const result = fastForwardDueDate(dueDate, monthlyPattern);
-      expect(result).toBe('2026-02-20T00:00:00.000Z'); // Still Feb 20
+      expect(result).toBe('2026-02-20'); // Still Feb 20
     });
 
     it('should fast forward multiple months', () => {
       const dueDate = '2025-10-15T00:00:00.000Z'; // Oct 15, 2025
       const result = fastForwardDueDate(dueDate, monthlyPattern);
-      expect(result).toBe('2026-02-15T00:00:00.000Z'); // Feb 15, 2026
+      expect(result).toBe('2026-02-15'); // Feb 15, 2026
     });
 
     it('should handle month overflow correctly', () => {
       const dueDate = '2026-01-31T00:00:00.000Z'; // Jan 31
       const result = fastForwardDueDate(dueDate, monthlyPattern);
       // Feb doesn't have 31 days, should clamp to Feb 28
-      const resultDate = new Date(result);
-      expect(resultDate.getUTCMonth()).toBe(1); // February (0-indexed)
-      expect(resultDate.getUTCDate()).toBeLessThanOrEqual(29); // Feb 28 or 29
-      expect(resultDate >= new Date('2026-02-16T00:00:00.000Z')).toBe(true);
+      expect(result).toBe('2026-02-28');
     });
   });
 
@@ -157,28 +149,26 @@ describe('fastForwardDueDate', () => {
     it('should fast forward to current year if date has passed', () => {
       const dueDate = '2025-02-14T00:00:00.000Z'; // Feb 14, 2025
       const result = fastForwardDueDate(dueDate, yearlyPattern);
-      expect(result).toBe('2026-02-14T00:00:00.000Z'); // Feb 14, 2026
+      expect(result).toBe('2026-02-14'); // Feb 14, 2026
     });
 
     it('should fast forward to next year if date is still ahead in current year', () => {
       const dueDate = '2026-03-01T00:00:00.000Z'; // Mar 1, 2026 (future)
       const result = fastForwardDueDate(dueDate, yearlyPattern);
-      expect(result).toBe('2026-03-01T00:00:00.000Z'); // Still Mar 1, 2026
+      expect(result).toBe('2026-03-01'); // Still Mar 1, 2026
     });
 
     it('should fast forward multiple years', () => {
       const dueDate = '2020-02-14T00:00:00.000Z'; // Feb 14, 2020
       const result = fastForwardDueDate(dueDate, yearlyPattern);
-      expect(result).toBe('2026-02-14T00:00:00.000Z'); // Feb 14, 2026
+      expect(result).toBe('2026-02-14'); // Feb 14, 2026
     });
 
     it('should handle leap year dates correctly', () => {
       const dueDate = '2024-02-29T00:00:00.000Z'; // Feb 29, 2024 (leap year)
       const result = fastForwardDueDate(dueDate, yearlyPattern);
-      // 2026 is not a leap year
-      const resultDate = new Date(result);
-      expect(resultDate.getFullYear()).toBe(2026);
-      expect(resultDate >= new Date('2026-02-16T00:00:00.000Z')).toBe(true);
+      // 2026 is not a leap year, clamps to Feb 28
+      expect(result).toBe('2026-02-28');
     });
   });
 
@@ -187,15 +177,15 @@ describe('fastForwardDueDate', () => {
       const dailyPattern: RecurrencePattern = { interval: 'daily' };
       const dueDate = '2026-02-15T00:00:00.000Z'; // Yesterday at midnight
       const result = fastForwardDueDate(dueDate, dailyPattern);
-      expect(result).toBe('2026-02-16T00:00:00.000Z'); // Today at midnight
+      expect(result).toBe('2026-02-16'); // Today at midnight
     });
 
     it('should handle due dates with time components', () => {
       const dailyPattern: RecurrencePattern = { interval: 'daily' };
       const dueDate = '2026-02-14T14:30:00.000Z'; // Feb 14 at 2:30 PM
       const result = fastForwardDueDate(dueDate, dailyPattern);
-      // Should preserve the time component while advancing to today
-      expect(result).toBe('2026-02-16T14:30:00.000Z');
+      // Should return date-only string (time component is dropped for consistency)
+      expect(result).toBe('2026-02-16');
     });
   });
 });
@@ -213,8 +203,8 @@ describe('getNextDueDate vs fastForwardDueDate', () => {
     const nextDue = getNextDueDate(dueDate, dailyPattern);
     const fastForward = fastForwardDueDate(dueDate, dailyPattern);
 
-    expect(nextDue).toBe('2026-02-17T00:00:00.000Z'); // Tomorrow (next occurrence)
-    expect(fastForward).toBe('2026-02-16T00:00:00.000Z'); // Today (catch up)
+    expect(nextDue).toBe('2026-02-17'); // Tomorrow (next occurrence)
+    expect(fastForward).toBe('2026-02-16'); // Today (catch up)
   });
 
   it('both should behave the same for future dates', () => {
@@ -225,8 +215,8 @@ describe('getNextDueDate vs fastForwardDueDate', () => {
     const fastForward = fastForwardDueDate(dueDate, dailyPattern);
 
     // Both should return the same result since it's already in the future
-    expect(nextDue).toBe('2026-02-18T00:00:00.000Z');
-    expect(fastForward).toBe('2026-02-17T00:00:00.000Z'); // Returns unchanged
+    expect(nextDue).toBe('2026-02-18');
+    expect(fastForward).toBe('2026-02-17'); // Returns unchanged
   });
 });
 
@@ -242,7 +232,7 @@ describe('frequency > 1 recurrence', () => {
       const pattern: RecurrencePattern = { interval: 'daily', frequency: 3 };
       const dueDate = '2026-02-15T00:00:00.000Z'; // yesterday
       const result = getNextDueDate(dueDate, pattern);
-      expect(result).toBe('2026-02-18T00:00:00.000Z'); // +3 days
+      expect(result).toBe('2026-02-18'); // +3 days
     });
 
     it('daily frequency=3: skips to next valid occurrence when overdue', () => {
@@ -251,14 +241,14 @@ describe('frequency > 1 recurrence', () => {
       const dueDate = '2026-02-14T00:00:00.000Z'; // 2 days ago (valid occurrence)
       const result = getNextDueDate(dueDate, pattern);
       // next occurrence after today (Feb 16) is Feb 17
-      expect(result).toBe('2026-02-17T00:00:00.000Z');
+      expect(result).toBe('2026-02-17');
     });
 
     it('weekly frequency=2 (no specific days): advances by 2 weeks', () => {
       const pattern: RecurrencePattern = { interval: 'weekly', frequency: 2 };
       const dueDate = '2026-02-16T00:00:00.000Z'; // today (Mon)
       const result = getNextDueDate(dueDate, pattern);
-      expect(result).toBe('2026-03-02T00:00:00.000Z'); // +2 weeks
+      expect(result).toBe('2026-03-02'); // +2 weeks
     });
 
     it('weekly frequency=2 (no specific days): skips to next valid occurrence when overdue', () => {
@@ -268,7 +258,7 @@ describe('frequency > 1 recurrence', () => {
       const result = getNextDueDate(dueDate, pattern);
       // Occurrences: Jan 26, Feb 9, Feb 23, ...
       // Today is Feb 16; next after today is Feb 23
-      expect(result).toBe('2026-02-23T00:00:00.000Z');
+      expect(result).toBe('2026-02-23');
     });
 
     it('weekly frequency=2 with daysOfWeek=[6] (every other Saturday): advances 2 weeks', () => {
@@ -276,7 +266,7 @@ describe('frequency > 1 recurrence', () => {
       // dueDate = last Saturday
       const dueDate = '2026-02-14T00:00:00.000Z'; // Sat Feb 14
       const result = getNextDueDate(dueDate, pattern);
-      expect(result).toBe('2026-02-28T00:00:00.000Z'); // Sat Feb 28 (2 weeks later)
+      expect(result).toBe('2026-02-28'); // Sat Feb 28 (2 weeks later)
     });
 
     it('weekly frequency=2 with daysOfWeek=[1,5] (Mon+Fri): returns Fri of same week after Mon', () => {
@@ -285,7 +275,7 @@ describe('frequency > 1 recurrence', () => {
       const dueDate = '2026-02-16T00:00:00.000Z'; // Mon Feb 16
       const result = getNextDueDate(dueDate, pattern);
       // Next in same cycle is Fri Feb 20
-      expect(result).toBe('2026-02-20T00:00:00.000Z');
+      expect(result).toBe('2026-02-20');
     });
 
     it('weekly frequency=2 with daysOfWeek=[1,5]: jumps 2 weeks after the last day in a cycle', () => {
@@ -294,18 +284,15 @@ describe('frequency > 1 recurrence', () => {
       const dueDate = '2026-02-13T00:00:00.000Z'; // Fri Feb 13
       const result = getNextDueDate(dueDate, pattern);
       // Next cycle starts Mon Feb 23 (Fri + 3 days to Mon + 7 days skip = +10 days)
-      expect(result).toBe('2026-02-23T00:00:00.000Z');
+      expect(result).toBe('2026-02-23');
     });
 
     it('monthly frequency=2: advances by 2 months', () => {
       const pattern: RecurrencePattern = { interval: 'monthly', frequency: 2 };
       const dueDate = '2026-02-15T00:00:00.000Z';
       const result = getNextDueDate(dueDate, pattern);
-      // date-fns addMonths uses local time, so we check UTC date components
-      const resultDate = new Date(result);
-      expect(resultDate.getUTCMonth()).toBe(3); // April (0-indexed)
-      expect(resultDate.getUTCDate()).toBeLessThanOrEqual(15);
-      expect(new Date(dueDate) < new Date(result)).toBe(true);
+      // Allow for DST-induced off-by-one: addMonths uses local time
+      expect(result).toMatch(/^2026-04-1[45]$/);
     });
 
     it('monthly frequency=2: skips to next valid occurrence when overdue', () => {
@@ -314,14 +301,14 @@ describe('frequency > 1 recurrence', () => {
       const dueDate = '2025-10-15T00:00:00.000Z';
       const result = getNextDueDate(dueDate, pattern);
       // Today Feb 16; Feb 15 is past; next is Apr 15
-      expect(result).toBe('2026-04-15T00:00:00.000Z');
+      expect(result).toBe('2026-04-15');
     });
 
     it('yearly frequency=2: advances by 2 years', () => {
       const pattern: RecurrencePattern = { interval: 'yearly', frequency: 2 };
       const dueDate = '2026-02-15T00:00:00.000Z';
       const result = getNextDueDate(dueDate, pattern);
-      expect(result).toBe('2028-02-15T00:00:00.000Z');
+      expect(result).toBe('2028-02-15');
     });
   });
 
@@ -332,7 +319,7 @@ describe('frequency > 1 recurrence', () => {
       // Today is Feb 16 (day 46); floor(46/3)=15 periods; 15*3=45 days = Feb 15
       const dueDate = '2026-01-01T00:00:00.000Z';
       const result = fastForwardDueDate(dueDate, pattern);
-      expect(result).toBe('2026-02-15T00:00:00.000Z');
+      expect(result).toBe('2026-02-15');
     });
 
     it('weekly frequency=2 (no days): skips to most recent valid 2-week cycle', () => {
@@ -341,7 +328,7 @@ describe('frequency > 1 recurrence', () => {
       // Today is Feb 16 (Mon); most recent occurrence is Feb 9
       const dueDate = '2026-01-12T00:00:00.000Z';
       const result = fastForwardDueDate(dueDate, pattern);
-      expect(result).toBe('2026-02-09T00:00:00.000Z');
+      expect(result).toBe('2026-02-09');
     });
 
     it('weekly frequency=2 with daysOfWeek=[6] (every other Saturday): finds last valid Saturday', () => {
@@ -350,7 +337,7 @@ describe('frequency > 1 recurrence', () => {
       // Today is Feb 16 (Mon); most recent occurrence is Feb 7
       const dueDate = '2026-01-10T00:00:00.000Z';
       const result = fastForwardDueDate(dueDate, pattern);
-      expect(result).toBe('2026-02-07T00:00:00.000Z');
+      expect(result).toBe('2026-02-07');
     });
 
     it('weekly frequency=2 with daysOfWeek=[1,5]: finds last valid occurrence in current cycle', () => {
@@ -359,7 +346,7 @@ describe('frequency > 1 recurrence', () => {
       // Today is Feb 16 (Mon); most recent occurrence is Fri Feb 13
       const dueDate = '2026-01-12T00:00:00.000Z';
       const result = fastForwardDueDate(dueDate, pattern);
-      expect(result).toBe('2026-02-13T00:00:00.000Z');
+      expect(result).toBe('2026-02-13');
     });
 
     it('monthly frequency=2: lands on the most recent valid 2-month occurrence', () => {
@@ -368,7 +355,7 @@ describe('frequency > 1 recurrence', () => {
       // Today is Feb 16; most recent occurrence is Feb 15
       const dueDate = '2025-10-15T00:00:00.000Z';
       const result = fastForwardDueDate(dueDate, pattern);
-      expect(result).toBe('2026-02-15T00:00:00.000Z');
+      expect(result).toBe('2026-02-15');
     });
 
     it('yearly frequency=2: lands on the most recent valid 2-year occurrence', () => {
@@ -377,7 +364,7 @@ describe('frequency > 1 recurrence', () => {
       // Today is Feb 16, 2026; most recent occurrence is Feb 15, 2026
       const dueDate = '2022-02-15T00:00:00.000Z';
       const result = fastForwardDueDate(dueDate, pattern);
-      expect(result).toBe('2026-02-15T00:00:00.000Z');
+      expect(result).toBe('2026-02-15');
     });
   });
 
