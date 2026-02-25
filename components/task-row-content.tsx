@@ -17,6 +17,7 @@ import {
   FastForward,
   SkipForward,
   CheckCheck,
+  LockKeyhole,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
@@ -28,6 +29,12 @@ import { formatDuration } from "@/lib/time-utils";
 import { playCompletionSound } from "@/lib/completion-sound";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 
 interface TaskRowContentProps {
@@ -106,12 +113,31 @@ export function TaskRowContent({
 
   return (
     <>
-      <Checkbox
-        ref={checkboxRef}
-        checked={task.completed}
-        onCheckedChange={handleToggle}
-        className={cn("shrink-0", isBlocked && "opacity-50 cursor-not-allowed")}
-      />
+      {isBlocked ? (
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={handleToggle}
+                className="shrink-0 text-orange-500 dark:text-orange-400 hover:text-orange-600 dark:hover:text-orange-500 transition-colors"
+              >
+                <LockKeyhole className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Blocked by &ldquo;{blockingTaskTitle}&rdquo;</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ) : (
+        <Checkbox
+          ref={checkboxRef}
+          checked={task.completed}
+          onCheckedChange={handleToggle}
+          className="shrink-0"
+        />
+      )}
 
       <span
         className={cn(
