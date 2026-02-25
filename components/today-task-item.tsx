@@ -79,6 +79,7 @@ export function TodayTaskItem({
         !shouldShowOverdueBackground &&
           "hover:bg-accent/50",
         isDragging && "z-50 opacity-40",
+        !isDragging && !task.completed && !!blockingTaskTitle && "opacity-40",
         task.completed && "opacity-60",
         shouldShowOverdueBackground &&
           "bg-red-100 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/40"

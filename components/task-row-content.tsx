@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef } from "react";
-import { format, isPast, isToday, parseISO } from "date-fns";
+import { format, isFuture, isPast, isToday, parseISO } from "date-fns";
 import {
   Plus,
   Pencil,
@@ -73,10 +73,27 @@ export function TaskRowContent({
   const checkboxRef = useRef<HTMLButtonElement>(null);
 
   const isBlocked = !task.completed && !!blockingTaskTitle;
+  const notYetStarted =
+    !task.completed &&
+    !!task.startDate &&
+    isFuture(parseISO(task.startDate));
+  const isLocked = isBlocked || notYetStarted;
+
+  const lockReason = isBlocked
+    ? `This task is blocked by "${blockingTaskTitle}"`
+    : notYetStarted
+      ? `This task can't start until ${format(parseISO(task.startDate!), "MMM d, yyyy")}`
+      : "";
+
+  const lockTooltip = isBlocked
+    ? `Blocked by \u201c${blockingTaskTitle}\u201d`
+    : notYetStarted
+      ? `Starts ${format(parseISO(task.startDate!), "MMM d, yyyy")}`
+      : "";
 
   const handleToggle = useCallback(() => {
-    if (isBlocked) {
-      toast.info(`This task is blocked by "${blockingTaskTitle}"`);
+    if (isLocked) {
+      toast.info(lockReason);
       return;
     }
     if (!task.completed && checkboxRef.current) {
@@ -94,7 +111,7 @@ export function TaskRowContent({
       playCompletionSound();
     }
     onToggle(task.id);
-  }, [task.completed, task.id, onToggle, isBlocked, blockingTaskTitle]);
+  }, [task.completed, task.id, onToggle, isLocked, lockReason]);
 
   const isOverdue =
     task.dueDate &&
@@ -113,7 +130,7 @@ export function TaskRowContent({
 
   return (
     <>
-      {isBlocked ? (
+      {isLocked ? (
         <TooltipProvider delayDuration={300}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -126,7 +143,7 @@ export function TaskRowContent({
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Blocked by &ldquo;{blockingTaskTitle}&rdquo;</p>
+              <p>{lockTooltip}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -149,12 +166,12 @@ export function TaskRowContent({
       </span>
 
       <div className="flex shrink-0 items-center gap-1.5">
-        {isBlocked && (
+        {isLocked && (
           <Badge
             variant="outline"
             className="text-xs border-orange-400 text-orange-600 dark:border-orange-500 dark:text-orange-400"
           >
-            Blocked
+            {isBlocked ? "Blocked" : "Not Started"}
           </Badge>
         )}
 

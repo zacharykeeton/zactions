@@ -100,6 +100,7 @@ export function TaskItem({
   const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const hasFutureStartDate =
     !task.completed && !!task.startDate && task.startDate > todayStr;
+  const isDependencyBlocked = !task.completed && !!blockingTaskTitle;
 
   return (
     <div
@@ -109,7 +110,7 @@ export function TaskItem({
         "group flex items-center gap-2 rounded-md border border-transparent px-2 py-1.5 hover:border-border",
         !shouldShowTodayBackground && !shouldShowOverdueBackground && "hover:bg-accent/50",
         isDragging && "z-50 opacity-40",
-        !isDragging && hasFutureStartDate && "opacity-40",
+        !isDragging && (hasFutureStartDate || isDependencyBlocked) && "opacity-40",
         task.completed && "opacity-60",
         shouldShowTodayBackground && "bg-emerald-100 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/40",
         shouldShowOverdueBackground && "bg-red-100 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/40"
