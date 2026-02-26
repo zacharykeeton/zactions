@@ -30,6 +30,7 @@ export interface Tag {
   id: string;
   name: string;
   color: TagColor;
+  listIds: string[]; // empty = global (all lists + inbox)
 }
 
 export interface TaskList {

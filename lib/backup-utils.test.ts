@@ -29,6 +29,7 @@ const sampleTag: Tag = {
   id: "tag-1",
   name: "urgent",
   color: "red",
+  listIds: [],
 };
 
 function makeFile(content: string, name = "backup.json"): File {
@@ -119,6 +120,24 @@ describe("parseBackupFile", () => {
   it("rejects JSON missing required top-level keys (tags)", async () => {
     const file = makeFile(JSON.stringify({ version: 1, tasks: [], lists: [] }));
     await expect(parseBackupFile(file)).rejects.toThrow("Missing or invalid tags field");
+  });
+
+  it("migrates legacy tags without listIds to have listIds: []", async () => {
+    const legacyTag = { id: "tag-1", name: "urgent", color: "red" };
+    const backup = makeValidBackup({ tags: [legacyTag as Tag] });
+    const file = makeFile(JSON.stringify(backup));
+    const result = await parseBackupFile(file);
+
+    expect(result.tags[0].listIds).toEqual([]);
+  });
+
+  it("preserves existing listIds on tags", async () => {
+    const scopedTag: Tag = { id: "tag-2", name: "work", color: "blue", listIds: ["list-1"] };
+    const backup = makeValidBackup({ tags: [scopedTag] });
+    const file = makeFile(JSON.stringify(backup));
+    const result = await parseBackupFile(file);
+
+    expect(result.tags[0].listIds).toEqual(["list-1"]);
   });
 
   it("accepts backup with missing preferences (optional)", async () => {

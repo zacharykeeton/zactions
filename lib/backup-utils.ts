@@ -159,5 +159,12 @@ export async function parseBackupFile(file: File): Promise<BackupData> {
     throw new Error("Missing or invalid tags field");
   }
 
-  return parsed as BackupData;
+  // Migrate legacy tags: default missing listIds to []
+  const result = parsed as BackupData;
+  result.tags = result.tags.map((tag) => ({
+    ...tag,
+    listIds: tag.listIds ?? [],
+  }));
+
+  return result;
 }

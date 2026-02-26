@@ -18,8 +18,14 @@ export function useTagStore() {
     const stored = localStorage.getItem(TAGS_STORAGE_KEY);
     if (stored) {
       try {
+        const parsed = JSON.parse(stored) as Tag[];
+        // Migrate legacy tags: default missing listIds to []
+        const migrated = parsed.map((tag) => ({
+          ...tag,
+          listIds: tag.listIds ?? [],
+        }));
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setTags(JSON.parse(stored) as Tag[]);
+        setTags(migrated);
       } catch {
         /* corrupt data, start fresh */
       }
@@ -27,8 +33,8 @@ export function useTagStore() {
     isLoadingFromStorage.current = false;
   }, []);
 
-  const addTag = useCallback((name: string, color: TagColor) => {
-    const newTag: Tag = { id: uuidv4(), name, color };
+  const addTag = useCallback((name: string, color: TagColor, listIds: string[] = []) => {
+    const newTag: Tag = { id: uuidv4(), name, color, listIds };
     setTags((prev) => [...prev, newTag]);
     return newTag;
   }, []);
@@ -46,9 +52,19 @@ export function useTagStore() {
     setTags((prev) => prev.filter((tag) => tag.id !== id));
   }, []);
 
+  const removeListFromTags = useCallback((listId: string) => {
+    setTags((prev) =>
+      prev.map((tag) =>
+        tag.listIds.includes(listId)
+          ? { ...tag, listIds: tag.listIds.filter((id) => id !== listId) }
+          : tag
+      )
+    );
+  }, []);
+
   const restoreTags = useCallback((snapshot: Tag[]) => {
     setTags(snapshot);
   }, []);
 
-  return { tags, addTag, updateTag, deleteTag, restoreTags };
+  return { tags, addTag, updateTag, deleteTag, removeListFromTags, restoreTags };
 }

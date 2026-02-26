@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format, parseISO } from "date-fns";
 import { CalendarIcon, CalendarPlus, Check, ChevronsUpDown, Link, Repeat, X } from "lucide-react";
 import type { Task, TaskList, Tag, Priority, RecurrenceInterval, DayOfWeek, RecurrencePattern } from "@/lib/types";
 import { TAG_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { getTagsForList } from "@/lib/tag-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -105,6 +106,11 @@ export function TaskForm({
   const isSubtask = parentId !== null;
   const canSubmit = title.trim() && !(isRecurring && !dueDate);
 
+  const filteredTags = useMemo(() => {
+    const listId = selectedListId === "__inbox__" ? undefined : selectedListId;
+    return getTagsForList(availableTags, listId);
+  }, [availableTags, selectedListId]);
+
   function toggleTag(tagId: string) {
     setSelectedTags((prev) =>
       prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
@@ -180,6 +186,11 @@ export function TaskForm({
           <Select value={selectedListId} onValueChange={(v) => {
             setSelectedListId(v);
             setSelectedDependency(undefined); // deps are same-list only
+            // Deselect tags that aren't available in the new list
+            const newListId = v === "__inbox__" ? undefined : v;
+            const newFilteredTags = getTagsForList(availableTags, newListId);
+            const newFilteredIds = new Set(newFilteredTags.map((t) => t.id));
+            setSelectedTags((prev) => prev.filter((id) => newFilteredIds.has(id)));
           }}>
             <SelectTrigger className="w-full">
               <SelectValue />
@@ -204,11 +215,11 @@ export function TaskForm({
         </div>
       )}
 
-      {availableTags.length > 0 && (
+      {filteredTags.length > 0 && (
         <div className="flex flex-col gap-2">
           <Label>Tags</Label>
           <div className="flex flex-wrap gap-1.5">
-            {availableTags.map((tag) => {
+            {filteredTags.map((tag) => {
               const isSelected = selectedTags.includes(tag.id);
               const colorStyle = TAG_COLORS[tag.color];
               return (

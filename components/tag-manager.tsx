@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Pencil, Trash2, Check, X } from "lucide-react";
-import type { Tag, TagColor } from "@/lib/types";
+import type { Tag, TagColor, TaskList } from "@/lib/types";
 import { TAG_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,8 @@ const COLOR_OPTIONS: TagColor[] = [
 
 interface TagManagerProps {
   tags: Tag[];
-  onAdd: (name: string, color: TagColor) => void;
+  lists: TaskList[];
+  onAdd: (name: string, color: TagColor, listIds: string[]) => void;
   onUpdate: (id: string, updates: Partial<Omit<Tag, "id">>) => void;
   onDelete: (id: string) => void;
 }
@@ -43,29 +44,37 @@ function ColorDot({ color, className }: { color: string; className?: string }) {
   );
 }
 
-export function TagManager({ tags, onAdd, onUpdate, onDelete }: TagManagerProps) {
+const ALL_LISTS_SENTINEL = "__all__";
+
+export function TagManager({ tags, lists, onAdd, onUpdate, onDelete }: TagManagerProps) {
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState<TagColor>("blue");
+  const [newListScope, setNewListScope] = useState(ALL_LISTS_SENTINEL);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState<TagColor>("blue");
+  const [editListScope, setEditListScope] = useState(ALL_LISTS_SENTINEL);
 
   function handleAdd() {
     const trimmed = newName.trim();
     if (!trimmed) return;
-    onAdd(trimmed, newColor);
+    const listIds = newListScope === ALL_LISTS_SENTINEL ? [] : [newListScope];
+    onAdd(trimmed, newColor, listIds);
     setNewName("");
+    setNewListScope(ALL_LISTS_SENTINEL);
   }
 
   function startEdit(tag: Tag) {
     setEditingId(tag.id);
     setEditName(tag.name);
     setEditColor(tag.color);
+    setEditListScope(tag.listIds[0] ?? ALL_LISTS_SENTINEL);
   }
 
   function saveEdit() {
     if (!editingId || !editName.trim()) return;
-    onUpdate(editingId, { name: editName.trim(), color: editColor });
+    const listIds = editListScope === ALL_LISTS_SENTINEL ? [] : [editListScope];
+    onUpdate(editingId, { name: editName.trim(), color: editColor, listIds });
     setEditingId(null);
   }
 
@@ -109,6 +118,27 @@ export function TagManager({ tags, onAdd, onUpdate, onDelete }: TagManagerProps)
                       ))}
                     </SelectContent>
                   </Select>
+                  {lists.length > 0 && (
+                    <Select
+                      value={editListScope}
+                      onValueChange={setEditListScope}
+                    >
+                      <SelectTrigger className="h-8 w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={ALL_LISTS_SENTINEL}>All Lists</SelectItem>
+                        {lists.map((list) => (
+                          <SelectItem key={list.id} value={list.id}>
+                            <div className="flex items-center gap-1.5">
+                              <ColorDot color={list.color} className="h-2.5 w-2.5" />
+                              {list.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
@@ -139,6 +169,11 @@ export function TagManager({ tags, onAdd, onUpdate, onDelete }: TagManagerProps)
                   >
                     <ColorDot color={tag.color} />
                     {tag.name}
+                    {tag.listIds.length > 0 && (
+                      <span className="ml-1 text-xs text-muted-foreground">
+                        ({lists.find((l) => l.id === tag.listIds[0])?.name ?? "Unknown list"})
+                      </span>
+                    )}
                   </Badge>
                   <Button
                     variant="ghost"
@@ -200,6 +235,27 @@ export function TagManager({ tags, onAdd, onUpdate, onDelete }: TagManagerProps)
               ))}
             </SelectContent>
           </Select>
+          {lists.length > 0 && (
+            <Select
+              value={newListScope}
+              onValueChange={setNewListScope}
+            >
+              <SelectTrigger className="h-8 w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_LISTS_SENTINEL}>All Lists</SelectItem>
+                {lists.map((list) => (
+                  <SelectItem key={list.id} value={list.id}>
+                    <div className="flex items-center gap-1.5">
+                      <ColorDot color={list.color} className="h-2.5 w-2.5" />
+                      {list.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Button
             size="sm"
             className="h-8"

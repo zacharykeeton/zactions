@@ -94,6 +94,7 @@ export default function Home() {
     addTag,
     updateTag: updateTagDef,
     deleteTag: deleteTagDef,
+    removeListFromTags,
     restoreTags,
   } = useTagStore();
 
@@ -240,7 +241,7 @@ export default function Home() {
     return counts;
   }, [tasks]);
 
-  // --- Delete list handler: clear listId from tasks ---
+  // --- Delete list handler: clear listId from tasks + tags ---
   function handleDeleteList(id: string) {
     // Clear listId from tasks that belong to this list
     function clearListId(items: Task[]) {
@@ -252,6 +253,7 @@ export default function Home() {
       }
     }
     clearListId(tasks);
+    removeListFromTags(id);
     deleteList(id);
   }
 
@@ -281,6 +283,29 @@ export default function Home() {
   const defaultListId = activeFilter !== "all" && activeFilter !== "inbox"
     ? activeFilter
     : undefined;
+
+  // Helper: walk the tree to find the effective listId for a task
+  function getEffectiveListId(taskId: string): string | undefined {
+    function search(items: Task[], inheritedListId: string | undefined): string | undefined {
+      for (const task of items) {
+        const listId = task.listId ?? inheritedListId;
+        if (task.id === taskId) return listId;
+        const result = search(task.children, listId);
+        if (result !== undefined) return result;
+      }
+      return undefined;
+    }
+    return search(tasks, undefined);
+  }
+
+  // Compute the defaultListId for the dialog (resolves parent's effective list for subtasks)
+  const effectiveDefaultListId = useMemo(() => {
+    if (parentIdForNew) {
+      return getEffectiveListId(parentIdForNew);
+    }
+    return defaultListId;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parentIdForNew, defaultListId, tasks]);
 
   // Compute eligible dependencies for the task being edited
   const availableDependencies = useMemo(() => {
@@ -472,6 +497,7 @@ export default function Home() {
             ) : sidebarView === "tags" ? (
               <TagManager
                 tags={tags}
+                lists={lists}
                 onAdd={addTag}
                 onUpdate={updateTagDef}
                 onDelete={deleteTagDef}
@@ -593,7 +619,7 @@ export default function Home() {
                   availableTags={tags}
                   availableLists={lists}
                   availableDependencies={availableDependencies}
-                  defaultListId={defaultListId}
+                  defaultListId={effectiveDefaultListId}
                   onSubmit={handleFormSubmit}
                   onCancel={() => setDialogOpen(false)}
                 />
