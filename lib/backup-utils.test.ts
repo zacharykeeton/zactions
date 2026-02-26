@@ -10,6 +10,7 @@ const sampleTask: Task = {
   priority: "medium",
   dueDate: null,
   scheduledDate: null,
+  startDate: null,
   completedDate: null,
   createdDate: "2026-01-01T00:00:00.000Z",
   children: [],
@@ -122,7 +123,7 @@ describe("parseBackupFile", () => {
 
   it("accepts backup with missing preferences (optional)", async () => {
     const backup = makeValidBackup();
-    delete (backup as Record<string, unknown>).preferences;
+    delete (backup as unknown as Record<string, unknown>).preferences;
     const file = makeFile(JSON.stringify(backup));
     const result = await parseBackupFile(file);
 

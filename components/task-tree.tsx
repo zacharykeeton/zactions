@@ -172,11 +172,6 @@ export function TaskTree({
   const recurringIds = useMemo(() => flattenedRecurring.map(({ id }) => id), [flattenedRecurring]);
   const nonRecurringIds = useMemo(() => flattenedNonRecurring.map(({ id }) => id), [flattenedNonRecurring]);
 
-  const allFullFlattenedItems = useMemo(
-    () => [...fullFlattenedRecurring, ...fullFlattenedNonRecurring],
-    [fullFlattenedRecurring, fullFlattenedNonRecurring]
-  );
-
   // Determine which group the active item belongs to
   const activeIsRecurring = activeId
     ? fullFlattenedRecurring.some(({ id }) => id === activeId)
@@ -247,7 +242,7 @@ export function TaskTree({
     },
   });
 
-  function renderTaskItem(task: (typeof allFullFlattenedItems)[number]) {
+  function renderTaskItem(task: FlattenedTask) {
     const blockingTask = getBlockingTask(allTasks, task);
     return (
       <TaskItem

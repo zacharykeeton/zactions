@@ -123,7 +123,6 @@ export default function Home() {
   useEffect(() => {
     const stored = localStorage.getItem(ACTIVE_LIST_KEY);
     if (stored) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveFilter(stored as ActiveListFilter);
     }
     isFilterLoaded.current = true;
