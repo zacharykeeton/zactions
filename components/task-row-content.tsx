@@ -273,7 +273,7 @@ export function TaskRowContent({
           </span>
         )}
 
-        {!task.completed && (
+        {!task.completed && !isLocked && (
           <Button
             variant="ghost"
             size="icon"
