@@ -7,66 +7,7 @@ import { removeItem, findItemDeep } from "@/lib/tree-utils";
 import { isTaskBlocked } from "@/lib/dependency-utils";
 import { getNextDueDate, fastForwardDueDate } from "@/lib/recurrence-utils";
 import { LOCAL_STORAGE_KEY } from "@/lib/constants";
-
-function migrateTask(task: Task): Task {
-  // Migrate completionHistory from old string[] to CompletionRecord[]
-  let completionHistory = task.completionHistory;
-  if (completionHistory && completionHistory.length > 0) {
-    completionHistory = (completionHistory as unknown as Array<string | CompletionRecord>).map(
-      (entry): CompletionRecord => {
-        if (typeof entry === "string") {
-          return { scheduledDate: null, dueDate: null, completedAt: entry };
-        }
-        return entry;
-      }
-    );
-  }
-
-  return {
-    ...task,
-    startDate: task.startDate ?? null,
-    timeInvestedMs: task.timeInvestedMs ?? 0,
-    archived: task.archived ?? false,
-    completionHistory,
-    children: task.children.map(migrateTask),
-  };
-}
-
-/** Recursively strip a deleted task's ID from all dependsOn arrays. */
-function removeDependencyRef(items: Task[], depId: string): Task[] {
-  return items.map((item) => {
-    const newDeps = item.dependsOn?.filter((id) => id !== depId);
-    return {
-      ...item,
-      dependsOn: newDeps && newDeps.length > 0 ? newDeps : undefined,
-      children: removeDependencyRef(item.children, depId),
-    };
-  });
-}
-
-function setArchivedDeep(items: Task[], archived: boolean): Task[] {
-  return items.map((item) => ({
-    ...item,
-    archived,
-    children: setArchivedDeep(item.children, archived),
-  }));
-}
-
-function setArchivedOnTask(items: Task[], id: string, archived: boolean): Task[] {
-  return items.map((item) => {
-    if (item.id === id) {
-      return {
-        ...item,
-        archived,
-        children: setArchivedDeep(item.children, archived),
-      };
-    }
-    if (item.children.length > 0) {
-      return { ...item, children: setArchivedOnTask(item.children, id, archived) };
-    }
-    return item;
-  });
-}
+import { migrateTask, removeDependencyRef, setArchivedOnTask } from "@/lib/task-store-utils";
 
 export function useTaskStore() {
   const [tasks, setTasks] = useState<Task[]>([]);
