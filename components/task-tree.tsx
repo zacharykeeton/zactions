@@ -18,6 +18,7 @@ import {
   buildTree,
   getProjection,
   findItemDeep,
+  hasAnyDateInTree,
 } from "@/lib/tree-utils";
 import { INDENTATION_WIDTH, COLLAPSED_TASKS_KEY } from "@/lib/constants";
 import { isSidebarDroppableId } from "@/lib/dnd-utils";
@@ -27,10 +28,6 @@ import { TaskItem } from "./task-item";
 const RECURRING_SECTION_KEY = "task-section-recurring-open";
 const NON_RECURRING_SECTION_KEY = "task-section-nonrecurring-open"; // now used for "Scheduled"
 const UNSCHEDULED_SECTION_KEY = "task-section-unscheduled-open";
-
-function hasAnyDate(task: Task): boolean {
-  return !!(task.dueDate || task.scheduledDate || task.startDate);
-}
 
 /** Remove descendants of collapsed tasks from a flattened list. */
 function filterCollapsed(items: FlattenedTask[], collapsedIds: Set<string>): FlattenedTask[] {
@@ -175,8 +172,8 @@ export function TaskTree({
   }
 
   const recurringTasks = useMemo(() => tasks.filter((t) => !!t.recurrence), [tasks]);
-  const scheduledTasks = useMemo(() => tasks.filter((t) => !t.recurrence && hasAnyDate(t)), [tasks]);
-  const unscheduledTasks = useMemo(() => tasks.filter((t) => !t.recurrence && !hasAnyDate(t)), [tasks]);
+  const scheduledTasks = useMemo(() => tasks.filter((t) => !t.recurrence && hasAnyDateInTree(t)), [tasks]);
+  const unscheduledTasks = useMemo(() => tasks.filter((t) => !t.recurrence && !hasAnyDateInTree(t)), [tasks]);
 
   const fullFlattenedRecurring = useMemo(() => flattenTree(recurringTasks), [recurringTasks]);
   const fullFlattenedScheduled = useMemo(() => flattenTree(scheduledTasks), [scheduledTasks]);

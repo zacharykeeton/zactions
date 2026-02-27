@@ -299,6 +299,12 @@ export function excludeArchivedTasks(tasks: Task[]): Task[] {
   }, []);
 }
 
+/** Recursively checks if a task or any descendant has a date (dueDate, scheduledDate, or startDate). */
+export function hasAnyDateInTree(task: Task): boolean {
+  if (task.dueDate || task.scheduledDate || task.startDate) return true;
+  return task.children.some(hasAnyDateInTree);
+}
+
 /** Collect top-level archived tasks (with children intact) for the Archived tab. */
 export function collectArchivedTasks(tasks: Task[]): Task[] {
   const results: Task[] = [];

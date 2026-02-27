@@ -23,6 +23,7 @@ import {
   getProjection,
   findItemDeep,
   excludeArchivedTasks,
+  hasAnyDateInTree,
 } from "@/lib/tree-utils";
 import { getTasksForMonth } from "@/lib/timeline-utils";
 import { isSidebarDroppableId } from "@/lib/dnd-utils";
@@ -304,7 +305,7 @@ export function TimelineView({
   const unscheduledTasks = useMemo(
     () => excludeArchivedTasks(
       (listFilter ? listFilter(tasks) : tasks).filter(
-        (t) => !t.recurrence && !hasAnyDate(t)
+        (t) => !t.recurrence && !hasAnyDateInTree(t)
       )
     ),
     [tasks, listFilter]
@@ -448,7 +449,7 @@ export function TimelineView({
       } else {
         // Unscheduled: merge visible timeline tasks + not-in-timeline + reordered unscheduled
         const notInTimelineExcludingUnscheduled = tasksNotInTimeline.filter(
-          (t) => t.recurrence || hasAnyDate(t)
+          (t) => t.recurrence || hasAnyDateInTree(t)
         );
         newTree = [...recurringTasks, ...scheduledTasks, ...notInTimelineExcludingUnscheduled, ...newGroupTree];
       }
