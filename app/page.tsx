@@ -613,9 +613,13 @@ export default function Home() {
                     onToggle={handleToggleWithTimer}
                     onEdit={handleEdit}
                     updateTask={updateTask}
+                    onReorder={reorderTasks}
                     tagMap={tagMap}
                     showFullMonth={timelineFullMonth}
                     onToggleFullMonth={() => setTimelineFullMonth((v) => !v)}
+                    activeId={dndActiveId}
+                    overId={dndOverId}
+                    offsetLeft={dndOffsetLeft}
                   />
                 </TabsContent>
               </Tabs>
