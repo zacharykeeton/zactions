@@ -34,6 +34,11 @@ export function TimelineBar({
   const isScheduledDrag = isDragging && dragType === "scheduled-endpoint";
   const barTransform = isDragging && !isScheduledDrag ? `translateX(${previewOffset}px)` : undefined;
 
+  // Hide endpoint circles when the scheduled square overlaps them
+  const scheduledOverlapsStart = scheduledDatePercent === 0;
+  const scheduledOverlapsEnd = scheduledDatePercent === 100;
+  const scheduledHasMoved = isScheduledDrag && previewOffset !== 0;
+
   if (!isRange) {
     // Single-day marker: centered filled circle
     return (
@@ -71,33 +76,37 @@ export function TimelineBar({
         onPointerDown={(e) => onBarPointerDown(taskId, e)}
       />
 
-      {/* Start endpoint */}
-      <div
-        className={cn(
-          "absolute left-0 top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full border-2 cursor-ew-resize z-10 transition-colors",
-          completed
-            ? "bg-muted-foreground/40 border-background"
-            : "bg-blue-500 dark:bg-blue-400 border-background"
-        )}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          onStartEndpointPointerDown(taskId, e);
-        }}
-      />
+      {/* Start endpoint — hidden when scheduled marker overlaps it */}
+      {!(scheduledOverlapsStart && !scheduledHasMoved) && (
+        <div
+          className={cn(
+            "absolute left-0 top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full border-2 cursor-ew-resize z-10 transition-colors",
+            completed
+              ? "bg-muted-foreground/40 border-background"
+              : "bg-blue-500 dark:bg-blue-400 border-background"
+          )}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            onStartEndpointPointerDown(taskId, e);
+          }}
+        />
+      )}
 
-      {/* End endpoint */}
-      <div
-        className={cn(
-          "absolute right-0 top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full border-2 cursor-ew-resize z-10 transition-colors",
-          completed
-            ? "bg-muted-foreground/40 border-background"
-            : "bg-blue-500 dark:bg-blue-400 border-background"
-        )}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          onEndEndpointPointerDown(taskId, e);
-        }}
-      />
+      {/* End endpoint — hidden when scheduled marker overlaps it */}
+      {!(scheduledOverlapsEnd && !scheduledHasMoved) && (
+        <div
+          className={cn(
+            "absolute right-0 top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full border-2 cursor-ew-resize z-10 transition-colors",
+            completed
+              ? "bg-muted-foreground/40 border-background"
+              : "bg-blue-500 dark:bg-blue-400 border-background"
+          )}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            onEndEndpointPointerDown(taskId, e);
+          }}
+        />
+      )}
 
       {/* Scheduled date marker */}
       {scheduledDatePercent !== undefined && (
