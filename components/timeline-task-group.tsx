@@ -51,7 +51,7 @@ export function TimelineTaskGroup({
   };
 
   return (
-    <div className="border border-border/60 rounded-lg my-0.5 overflow-hidden">
+    <div className="ring-1 ring-border/60 rounded-lg">
       <TimelineTaskBar task={parent} {...barProps} />
       {children.map((child) => (
         <TimelineTaskBar key={child.id} task={child} {...barProps} />
