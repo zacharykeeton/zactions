@@ -16,8 +16,13 @@ function loadCompactMode(): boolean {
 }
 
 export function CompactModeProvider({ children }: { children: ReactNode }) {
-  const [compactMode, setCompactMode] = useState(loadCompactMode);
+  const [compactMode, setCompactMode] = useState(false);
   const isInitialMount = useRef(true);
+
+  useEffect(() => {
+    const stored = loadCompactMode();
+    if (stored) setCompactMode(true);
+  }, []);
 
   useEffect(() => {
     if (isInitialMount.current) {

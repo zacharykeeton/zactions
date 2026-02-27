@@ -14,6 +14,7 @@ interface TodayTaskItemProps {
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onEdit: (task: Task) => void;
+  onDuplicate?: (task: Task) => void;
   onArchive?: (id: string) => void;
   onFastForward?: (id: string) => void;
   onSkipToday?: (id: string) => void;
@@ -30,6 +31,7 @@ export function TodayTaskItem({
   onToggle,
   onDelete,
   onEdit,
+  onDuplicate,
   onArchive,
   onFastForward,
   onSkipToday,
@@ -99,6 +101,7 @@ export function TodayTaskItem({
         onToggle={onToggle}
         onDelete={onDelete}
         onEdit={onEdit}
+        onDuplicate={onDuplicate}
         onArchive={onArchive}
         onFastForward={onFastForward}
         onSkipToday={onSkipToday}

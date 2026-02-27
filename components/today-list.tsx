@@ -71,6 +71,7 @@ interface TodayListProps {
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onEdit: (task: Task) => void;
+  onDuplicate?: (task: Task) => void;
   onArchive?: (id: string) => void;
   onFastForward?: (id: string) => void;
   onSkipToday?: (id: string) => void;
@@ -94,6 +95,7 @@ export function TodayList({
   onToggle,
   onDelete,
   onEdit,
+  onDuplicate,
   onArchive,
   onFastForward,
   onSkipToday,
@@ -265,6 +267,7 @@ export function TodayList({
         onToggle={onToggle}
         onDelete={onDelete}
         onEdit={onEdit}
+        onDuplicate={onDuplicate}
         onArchive={onArchive}
         onFastForward={onFastForward}
         onSkipToday={onSkipToday}

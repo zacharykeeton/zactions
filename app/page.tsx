@@ -293,21 +293,36 @@ export default function Home() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [parentIdForNew, setParentIdForNew] = useState<string | null>(null);
+  const [duplicateSource, setDuplicateSource] = useState<Task | null>(null);
 
   function handleAddRootTask() {
     setEditingTask(null);
     setParentIdForNew(null);
+    setDuplicateSource(null);
     setDialogOpen(true);
   }
 
   function handleAddSubtask(parentId: string) {
     setEditingTask(null);
     setParentIdForNew(parentId);
+    setDuplicateSource(null);
     setDialogOpen(true);
   }
 
   function handleEdit(task: Task) {
     setEditingTask(task);
+    setDuplicateSource(null);
+    setDialogOpen(true);
+  }
+
+  function handleDuplicate(task: Task) {
+    setEditingTask(null);
+    setParentIdForNew(null);
+    setDuplicateSource({
+      ...task,
+      dependsOn: undefined,
+      children: [],
+    });
     setDialogOpen(true);
   }
 
@@ -583,6 +598,7 @@ export default function Home() {
                       onToggle={handleToggleWithTimer}
                       onDelete={handleDeleteWithTimer}
                       onEdit={handleEdit}
+                      onDuplicate={handleDuplicate}
                       onAddSubtask={handleAddSubtask}
                       onArchive={handleArchiveWithTimer}
                       onFastForward={fastForwardTask}
@@ -605,6 +621,7 @@ export default function Home() {
                     onToggle={handleToggleWithTimer}
                     onDelete={handleDeleteWithTimer}
                     onEdit={handleEdit}
+                    onDuplicate={handleDuplicate}
                     onArchive={handleArchiveWithTimer}
                     onFastForward={fastForwardTask}
                     onSkipToday={skipTodayTask}
@@ -630,6 +647,7 @@ export default function Home() {
                     onToggle={handleToggleWithTimer}
                     onDelete={handleDeleteWithTimer}
                     onEdit={handleEdit}
+                    onDuplicate={handleDuplicate}
                     onArchive={handleArchiveWithTimer}
                     onFastForward={fastForwardTask}
                     activeTimerId={activeTimerId}
@@ -659,20 +677,25 @@ export default function Home() {
               </Tabs>
             )}
 
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog open={dialogOpen} onOpenChange={(open) => {
+              setDialogOpen(open);
+              if (!open) setDuplicateSource(null);
+            }}>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>
                     {editingTask
                       ? "Edit Task"
-                      : parentIdForNew
-                        ? "Add Subtask"
-                        : "New Task"}
+                      : duplicateSource
+                        ? "Duplicate Task"
+                        : parentIdForNew
+                          ? "Add Subtask"
+                          : "New Task"}
                   </DialogTitle>
                 </DialogHeader>
                 <TaskForm
-                  key={editingTask?.id ?? parentIdForNew ?? "new"}
-                  initialData={editingTask ?? undefined}
+                  key={editingTask?.id ?? (duplicateSource ? `dup-${duplicateSource.id}` : null) ?? parentIdForNew ?? "new"}
+                  initialData={editingTask ?? duplicateSource ?? undefined}
                   parentId={editingTask ? null : parentIdForNew}
                   availableTags={tags}
                   availableLists={lists}

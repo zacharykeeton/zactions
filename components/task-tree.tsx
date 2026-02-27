@@ -88,6 +88,7 @@ interface TaskTreeProps {
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onEdit: (task: Task) => void;
+  onDuplicate?: (task: Task) => void;
   onAddSubtask: (parentId: string) => void;
   onArchive?: (id: string) => void;
   onFastForward?: (id: string) => void;
@@ -108,6 +109,7 @@ export function TaskTree({
   onToggle,
   onDelete,
   onEdit,
+  onDuplicate,
   onAddSubtask,
   onArchive,
   onFastForward,
@@ -292,6 +294,7 @@ export function TaskTree({
         onToggle={onToggle}
         onDelete={onDelete}
         onEdit={onEdit}
+        onDuplicate={onDuplicate}
         onAddSubtask={onAddSubtask}
         onArchive={onArchive}
         onFastForward={onFastForward}

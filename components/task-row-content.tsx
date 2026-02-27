@@ -5,6 +5,7 @@ import { format, isFuture, isPast, isToday, parseISO } from "date-fns";
 import {
   Plus,
   Pencil,
+  Copy,
   Trash2,
   Calendar,
   CalendarArrowDown,
@@ -46,6 +47,7 @@ interface TaskRowContentProps {
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onEdit: (task: Task) => void;
+  onDuplicate?: (task: Task) => void;
   onAddSubtask?: (parentId: string) => void;
   onArchive?: (id: string) => void;
   onFastForward?: (id: string) => void;
@@ -63,6 +65,7 @@ export function TaskRowContent({
   onToggle,
   onDelete,
   onEdit,
+  onDuplicate,
   onAddSubtask,
   onArchive,
   onFastForward,
@@ -390,6 +393,17 @@ export function TaskRowContent({
           >
             <Pencil className="h-3.5 w-3.5" />
           </Button>
+          {onDuplicate && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => onDuplicate(task)}
+              title="Duplicate task"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+          )}
           {onArchive && (
             <Button
               variant="ghost"
