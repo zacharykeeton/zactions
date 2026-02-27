@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { startOfDay, addDays } from "date-fns";
-import { ListTodo, Plus, CalendarCheck, CalendarClock } from "lucide-react";
+import { ListTodo, Plus, CalendarCheck, CalendarClock, GanttChartSquare } from "lucide-react";
 import { toast } from "sonner";
 import {
   DndContext,
@@ -30,6 +30,7 @@ import { isSidebarDroppableId, getListIdFromDroppableId } from "@/lib/dnd-utils"
 import { TaskTree } from "@/components/task-tree";
 import { TaskItemOverlay } from "@/components/task-item";
 import { TodayList } from "@/components/today-list";
+import { TimelineView } from "@/components/timeline-view";
 import { ArchivedList } from "@/components/archived-list";
 import { TaskForm } from "@/components/task-form";
 import { TagManager } from "@/components/tag-manager";
@@ -130,6 +131,8 @@ export default function Home() {
   }, []);
 
   const [sidebarView, setSidebarView] = useState<SidebarView>("tasks");
+  const [activeTab, setActiveTab] = useState("all");
+  const [timelineFullMonth, setTimelineFullMonth] = useState(false);
 
   function handleFilterChange(filter: ActiveListFilter) {
     setActiveFilter(filter);
@@ -471,7 +474,7 @@ export default function Home() {
         />
         <SidebarInset>
         <div className="min-h-screen bg-background">
-          <div className="mx-auto max-w-3xl px-4 py-8">
+          <div className={`mx-auto px-4 py-8 ${activeTab === "timeline" && timelineFullMonth ? "max-w-full" : "max-w-3xl"}`}>
             <header className="mb-8 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <SidebarTrigger />
@@ -503,7 +506,7 @@ export default function Home() {
                 onDelete={deleteTagDef}
               />
             ) : (
-              <Tabs defaultValue="all" className="w-full">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="mb-4">
                   <TabsTrigger value="all">
                     <ListTodo className="mr-2 h-4 w-4" />
@@ -516,6 +519,10 @@ export default function Home() {
                   <TabsTrigger value="tomorrow">
                     <CalendarClock className="mr-2 h-4 w-4" />
                     Tomorrow
+                  </TabsTrigger>
+                  <TabsTrigger value="timeline">
+                    <GanttChartSquare className="mr-2 h-4 w-4" />
+                    Timeline
                   </TabsTrigger>
                 </TabsList>
 
@@ -596,6 +603,19 @@ export default function Home() {
                     onStartTimer={startTimer}
                     onPauseTimer={pauseTimer}
                     tagMap={tagMap}
+                  />
+                </TabsContent>
+
+                <TabsContent value="timeline">
+                  <TimelineView
+                    tasks={tasks}
+                    listFilter={filterTasksByList}
+                    onToggle={handleToggleWithTimer}
+                    onEdit={handleEdit}
+                    updateTask={updateTask}
+                    tagMap={tagMap}
+                    showFullMonth={timelineFullMonth}
+                    onToggleFullMonth={() => setTimelineFullMonth((v) => !v)}
                   />
                 </TabsContent>
               </Tabs>

@@ -19,6 +19,12 @@ export const BACKUP_VERSION = 1;
 export const SIDEBAR_DROPPABLE_PREFIX = "sidebar-list-";
 export const SIDEBAR_INBOX_DROPPABLE_ID = "sidebar-inbox";
 
+export const TIMELINE_MONTH_KEY = "timeline-current-month";
+export const TIMELINE_DAY_MIN_WIDTH = 32;
+export const TIMELINE_LABEL_WIDTH = 200;
+export const TIMELINE_ROW_HEIGHT = 36;
+export const TIMELINE_BAR_HEIGHT = 20;
+
 export const TAG_COLORS: Record<string, { badge: string; dot: string }> = {
   red: {
     badge: "border-red-400 text-red-700 dark:border-red-600 dark:text-red-400",
