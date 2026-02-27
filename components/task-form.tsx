@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { format, parseISO } from "date-fns";
-import { CalendarIcon, CalendarPlus, Check, ChevronsUpDown, Hourglass, Link, Repeat, X } from "lucide-react";
+import { CalendarIcon, CalendarPlus, Check, ChevronsUpDown, Hourglass, Link, Repeat, Timer, X } from "lucide-react";
 import type { Task, TaskList, Tag, Priority, RecurrenceInterval, DayOfWeek, RecurrencePattern } from "@/lib/types";
 import { TAG_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -53,6 +53,7 @@ interface TaskFormProps {
     listId?: string;
     dependsOn?: string[];
     timeEstimateMs?: number | null;
+    timeInvestedMs?: number;
   }) => void;
   onCancel: () => void;
 }
@@ -113,6 +114,15 @@ export function TaskForm({
     return String(Math.round((initialData.timeEstimateMs % 3600000) / 60000));
   });
 
+  const [investedHours, setInvestedHours] = useState(() => {
+    if (!initialData?.timeInvestedMs) return "";
+    return String(Math.floor(initialData.timeInvestedMs / 3600000));
+  });
+  const [investedMinutes, setInvestedMinutes] = useState(() => {
+    if (!initialData?.timeInvestedMs) return "";
+    return String(Math.round((initialData.timeInvestedMs % 3600000) / 60000));
+  });
+
   const isSubtask = parentId !== null;
   const canSubmit = title.trim() && !(isRecurring && !dueDate);
 
@@ -153,6 +163,10 @@ export function TaskForm({
     const m = parseInt(estimateMinutes, 10) || 0;
     const totalEstimateMs = (h * 3600000) + (m * 60000);
 
+    const ih = parseInt(investedHours, 10) || 0;
+    const im = parseInt(investedMinutes, 10) || 0;
+    const totalInvestedMs = (ih * 3600000) + (im * 60000);
+
     onSubmit({
       title: title.trim(),
       priority,
@@ -165,6 +179,7 @@ export function TaskForm({
       listId: selectedListId === "__inbox__" ? undefined : selectedListId,
       dependsOn: selectedDependency ? [selectedDependency] : undefined,
       timeEstimateMs: totalEstimateMs > 0 ? totalEstimateMs : null,
+      timeInvestedMs: totalInvestedMs,
     });
   }
 
@@ -601,6 +616,37 @@ export function TaskForm({
           </Button>
         </div>
       </div>
+
+      {initialData && (
+        <div className="flex flex-col gap-2">
+          <Label className="flex items-center gap-1.5">
+            <Timer className="h-4 w-4" />
+            Time Invested
+          </Label>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              min={0}
+              max={999}
+              value={investedHours}
+              onChange={(e) => setInvestedHours(e.target.value)}
+              placeholder="0"
+              className="w-20 text-center"
+            />
+            <span className="text-sm text-muted-foreground">h</span>
+            <Input
+              type="number"
+              min={0}
+              max={59}
+              value={investedMinutes}
+              onChange={(e) => setInvestedMinutes(e.target.value)}
+              placeholder="0"
+              className="w-20 text-center"
+            />
+            <span className="text-sm text-muted-foreground">m</span>
+          </div>
+        </div>
+      )}
 
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onCancel}>

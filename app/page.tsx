@@ -372,6 +372,7 @@ export default function Home() {
     listId?: string;
     dependsOn?: string[];
     timeEstimateMs?: number | null;
+    timeInvestedMs?: number;
   }) {
     if (editingTask) {
       // If list changed, clear dependencies (same-list only)
@@ -387,6 +388,7 @@ export default function Home() {
         listId: data.listId,
         dependsOn: listChanged ? undefined : data.dependsOn,
         timeEstimateMs: data.timeEstimateMs ?? null,
+        timeInvestedMs: data.timeInvestedMs ?? 0,
       });
     } else {
       addTask(
