@@ -5,7 +5,7 @@ import { addDays, format, parseISO } from "date-fns";
 import type { Task } from "@/lib/types";
 import { getTaskDateRange } from "@/lib/timeline-utils";
 
-export type DragType = "bar" | "start-endpoint" | "end-endpoint";
+export type DragType = "bar" | "start-endpoint" | "end-endpoint" | "scheduled-endpoint";
 
 interface UseTimelineDragOptions {
   dayWidth: number;
@@ -27,6 +27,10 @@ interface UseTimelineDragReturn {
     e: React.PointerEvent
   ) => void;
   handleEndEndpointPointerDown: (
+    taskId: string,
+    e: React.PointerEvent
+  ) => void;
+  handleScheduledEndpointPointerDown: (
     taskId: string,
     e: React.PointerEvent
   ) => void;
@@ -152,6 +156,11 @@ export function useTimelineDrag({
           else if (task.scheduledDate) updates.scheduledDate = newEnd;
           onDateChangeRef.current(state.taskId, updates);
         }
+      } else if (state.type === "scheduled-endpoint") {
+        const newScheduled = shiftDate(task.scheduledDate, dayDelta);
+        if (newScheduled) {
+          onDateChangeRef.current(state.taskId, { scheduledDate: newScheduled });
+        }
       }
     }
 
@@ -223,6 +232,12 @@ export function useTimelineDrag({
     [startDrag]
   );
 
+  const handleScheduledEndpointPointerDown = useCallback(
+    (taskId: string, e: React.PointerEvent) =>
+      startDrag(taskId, "scheduled-endpoint", e),
+    [startDrag]
+  );
+
   return {
     isDragging,
     dragType,
@@ -231,5 +246,6 @@ export function useTimelineDrag({
     handleBarPointerDown,
     handleStartEndpointPointerDown,
     handleEndEndpointPointerDown,
+    handleScheduledEndpointPointerDown,
   };
 }

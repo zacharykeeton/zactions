@@ -68,20 +68,24 @@ export function TimelineGrid({
 
   const {
     isDragging,
+    dragType,
     dragTaskId,
     previewOffset,
     handleBarPointerDown,
     handleStartEndpointPointerDown,
     handleEndEndpointPointerDown,
+    handleScheduledEndpointPointerDown,
   } = useTimelineDrag({ dayWidth, onDateChange: updateTask, findTask });
 
   const dragProps = {
     isDragging,
+    dragType,
     dragTaskId,
     previewOffset,
     onBarPointerDown: handleBarPointerDown,
     onStartEndpointPointerDown: handleStartEndpointPointerDown,
     onEndEndpointPointerDown: handleEndEndpointPointerDown,
+    onScheduledEndpointPointerDown: handleScheduledEndpointPointerDown,
   };
 
   // Memoize static grid decorations — only changes when month changes

@@ -1,6 +1,7 @@
 "use client";
 
 import type { Task } from "@/lib/types";
+import type { DragType } from "@/hooks/use-timeline-drag";
 import { TimelineTaskBar } from "@/components/timeline-task-row";
 
 interface TimelineTaskGroupProps {
@@ -10,11 +11,13 @@ interface TimelineTaskGroupProps {
   monthStart: Date;
   monthEnd: Date;
   isDragging: boolean;
+  dragType: DragType | null;
   dragTaskId: string | null;
   previewOffset: number;
   onBarPointerDown: (taskId: string, e: React.PointerEvent) => void;
   onStartEndpointPointerDown: (taskId: string, e: React.PointerEvent) => void;
   onEndEndpointPointerDown: (taskId: string, e: React.PointerEvent) => void;
+  onScheduledEndpointPointerDown: (taskId: string, e: React.PointerEvent) => void;
 }
 
 /**
@@ -28,19 +31,23 @@ export function TimelineTaskGroup({
   monthStart,
   monthEnd,
   isDragging,
+  dragType,
   dragTaskId,
   previewOffset,
   onBarPointerDown,
   onStartEndpointPointerDown,
   onEndEndpointPointerDown,
+  onScheduledEndpointPointerDown,
 }: TimelineTaskGroupProps) {
   const dragProps = {
     isDragging,
+    dragType,
     dragTaskId,
     previewOffset,
     onBarPointerDown,
     onStartEndpointPointerDown,
     onEndEndpointPointerDown,
+    onScheduledEndpointPointerDown,
   };
 
   const barProps = {

@@ -1,8 +1,9 @@
 "use client";
 
 import type { Task, Tag } from "@/lib/types";
+import type { DragType } from "@/hooks/use-timeline-drag";
 import { cn } from "@/lib/utils";
-import { getBarColumns, getTaskDateRange } from "@/lib/timeline-utils";
+import { getBarColumns, getTaskDateRange, clampToMonth, getDayColumn } from "@/lib/timeline-utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TimelineBar } from "@/components/timeline-bar";
 import { priorityColors, TAG_COLORS } from "@/lib/constants";
@@ -23,11 +24,13 @@ interface TimelineTaskRowProps {
   onEdit: (task: Task) => void;
   tagMap?: Record<string, Tag>;
   isDragging: boolean;
+  dragType: DragType | null;
   dragTaskId: string | null;
   previewOffset: number;
   onBarPointerDown: (taskId: string, e: React.PointerEvent) => void;
   onStartEndpointPointerDown: (taskId: string, e: React.PointerEvent) => void;
   onEndEndpointPointerDown: (taskId: string, e: React.PointerEvent) => void;
+  onScheduledEndpointPointerDown: (taskId: string, e: React.PointerEvent) => void;
   indent?: number;
 }
 
@@ -115,11 +118,13 @@ export function TimelineTaskBar({
   monthStart,
   monthEnd,
   isDragging,
+  dragType,
   dragTaskId,
   previewOffset,
   onBarPointerDown,
   onStartEndpointPointerDown,
   onEndEndpointPointerDown,
+  onScheduledEndpointPointerDown,
 }: Omit<TimelineTaskRowProps, "onToggle" | "onEdit" | "tagMap" | "indent">) {
   const columns = getBarColumns(task, monthStart, monthEnd);
   const isThisDragging = isDragging && dragTaskId === task.id;
@@ -131,6 +136,19 @@ export function TimelineTaskBar({
   const single = columns.startCol === columns.endCol;
   const leftPercent = ((columns.startCol - 1) / daysInMonth) * 100;
   const widthPercent = ((columns.endCol - columns.startCol + 1) / daysInMonth) * 100;
+
+  // Compute scheduled date marker position as a percentage within the bar
+  let scheduledDatePercent: number | undefined;
+  if (!single && task.scheduledDate) {
+    const clampedScheduled = clampToMonth(task.scheduledDate, monthStart, monthEnd);
+    const scheduledCol = getDayColumn(clampedScheduled);
+    if (scheduledCol >= columns.startCol && scheduledCol <= columns.endCol) {
+      const span = columns.endCol - columns.startCol;
+      if (span > 0) {
+        scheduledDatePercent = ((scheduledCol - columns.startCol) / span) * 100;
+      }
+    }
+  }
 
   return (
     <div className="h-9 relative flex items-center border-b border-border/40">
@@ -146,10 +164,13 @@ export function TimelineTaskBar({
           isRange={!single}
           completed={task.completed}
           isDragging={isThisDragging}
+          dragType={isThisDragging ? dragType : null}
           previewOffset={isThisDragging ? previewOffset : 0}
+          scheduledDatePercent={scheduledDatePercent}
           onBarPointerDown={onBarPointerDown}
           onStartEndpointPointerDown={onStartEndpointPointerDown}
           onEndEndpointPointerDown={onEndEndpointPointerDown}
+          onScheduledEndpointPointerDown={onScheduledEndpointPointerDown}
         />
       </div>
     </div>

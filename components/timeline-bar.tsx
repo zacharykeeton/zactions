@@ -1,5 +1,6 @@
 "use client";
 
+import type { DragType } from "@/hooks/use-timeline-drag";
 import { cn } from "@/lib/utils";
 
 interface TimelineBarProps {
@@ -7,10 +8,13 @@ interface TimelineBarProps {
   isRange: boolean;
   completed: boolean;
   isDragging: boolean;
+  dragType: DragType | null;
   previewOffset: number;
+  scheduledDatePercent?: number;
   onBarPointerDown: (taskId: string, e: React.PointerEvent) => void;
   onStartEndpointPointerDown: (taskId: string, e: React.PointerEvent) => void;
   onEndEndpointPointerDown: (taskId: string, e: React.PointerEvent) => void;
+  onScheduledEndpointPointerDown: (taskId: string, e: React.PointerEvent) => void;
 }
 
 export function TimelineBar({
@@ -18,19 +22,24 @@ export function TimelineBar({
   isRange,
   completed,
   isDragging,
+  dragType,
   previewOffset,
+  scheduledDatePercent,
   onBarPointerDown,
   onStartEndpointPointerDown,
   onEndEndpointPointerDown,
+  onScheduledEndpointPointerDown,
 }: TimelineBarProps) {
-  const transform = isDragging ? `translateX(${previewOffset}px)` : undefined;
+  // Only shift the whole bar for non-scheduled drags
+  const isScheduledDrag = isDragging && dragType === "scheduled-endpoint";
+  const barTransform = isDragging && !isScheduledDrag ? `translateX(${previewOffset}px)` : undefined;
 
   if (!isRange) {
     // Single-day marker: centered filled circle
     return (
       <div
         className="flex items-center justify-center w-full h-5"
-        style={{ transform }}
+        style={{ transform: barTransform }}
       >
         <div
           className={cn(
@@ -49,7 +58,7 @@ export function TimelineBar({
   return (
     <div
       className={cn("relative flex items-center w-full h-5", isDragging && "z-10")}
-      style={{ transform }}
+      style={{ transform: barTransform }}
     >
       {/* Bar body (connecting line) */}
       <div
@@ -89,6 +98,26 @@ export function TimelineBar({
           onEndEndpointPointerDown(taskId, e);
         }}
       />
+
+      {/* Scheduled date marker */}
+      {scheduledDatePercent !== undefined && (
+        <div
+          className={cn(
+            "absolute top-1/2 h-3 w-3 z-10 cursor-ew-resize transition-colors",
+            completed
+              ? "bg-muted-foreground/40"
+              : "bg-blue-500 dark:bg-blue-400"
+          )}
+          style={{
+            left: `${scheduledDatePercent}%`,
+            transform: `translateY(-50%) translateX(calc(-50% + ${isScheduledDrag ? previewOffset : 0}px))`,
+          }}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            onScheduledEndpointPointerDown(taskId, e);
+          }}
+        />
+      )}
     </div>
   );
 }
