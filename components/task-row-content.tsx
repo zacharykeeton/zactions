@@ -269,8 +269,11 @@ export function TaskRowContent({
           </span>
         )}
 
-        {!compactMode && (task.timeEstimateMs && !displayTimeMs && !isTimerActive ? (
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+        {task.timeEstimateMs && !displayTimeMs && !isTimerActive ? (
+          <span className={cn(
+            "flex items-center gap-1 text-xs text-muted-foreground",
+            compactMode && "opacity-0 group-hover:opacity-100 transition-opacity"
+          )}>
             <Hourglass className="h-3 w-3" />
             Est {formatEstimate(task.timeEstimateMs)}
           </span>
@@ -282,13 +285,14 @@ export function TaskRowContent({
                 ? "text-blue-600 dark:text-blue-400"
                 : displayTimeMs > task.timeEstimateMs
                   ? "text-red-600 dark:text-red-400"
-                  : "text-green-600 dark:text-green-400"
+                  : "text-green-600 dark:text-green-400",
+              compactMode && !isTimerActive && "opacity-0 group-hover:opacity-100 transition-opacity"
             )}
           >
             <Hourglass className="h-3 w-3" />
             {formatEstimate(displayTimeMs)} / {formatEstimate(task.timeEstimateMs)}
           </span>
-        ) : (displayTimeMs > 0 || isTimerActive) ? (
+        ) : !compactMode && (displayTimeMs > 0 || isTimerActive) ? (
           <span
             className={cn(
               "font-mono text-xs tabular-nums",
@@ -299,7 +303,7 @@ export function TaskRowContent({
           >
             {formatDuration(displayTimeMs)}
           </span>
-        ) : null)}
+        ) : null}
 
         {!task.completed && !isLocked && (
           <Button
