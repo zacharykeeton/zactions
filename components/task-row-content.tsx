@@ -7,6 +7,7 @@ import {
   Pencil,
   Trash2,
   Calendar,
+  CalendarArrowDown,
   CalendarPlus,
   ClipboardPlus,
   Clock,
@@ -28,6 +29,7 @@ import type { Task, Tag } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { formatDuration, formatEstimate } from "@/lib/time-utils";
 import { playCompletionSound } from "@/lib/completion-sound";
+import { downloadTaskIcs } from "@/lib/ics-utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import {
@@ -353,6 +355,20 @@ export function TaskRowContent({
               title="Add subtask"
             >
               <Plus className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {task.timeEstimateMs !== null && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => {
+                downloadTaskIcs(task);
+                toast.success("Calendar event downloaded");
+              }}
+              title="Export to Outlook (.ics)"
+            >
+              <CalendarArrowDown className="h-3.5 w-3.5" />
             </Button>
           )}
           <Button
