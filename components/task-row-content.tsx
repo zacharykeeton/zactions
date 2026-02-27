@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { formatDuration, formatEstimate } from "@/lib/time-utils";
 import { playCompletionSound } from "@/lib/completion-sound";
 import { downloadTaskIcs } from "@/lib/ics-utils";
+import { useCompactMode } from "@/hooks/use-compact-mode";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import {
@@ -73,6 +74,7 @@ export function TaskRowContent({
   onPauseTimer,
   blockingTaskTitle,
 }: TaskRowContentProps) {
+  const { compactMode } = useCompactMode();
   const checkboxRef = useRef<HTMLButtonElement>(null);
 
   const isBlocked = !task.completed && !!blockingTaskTitle;
@@ -169,7 +171,7 @@ export function TaskRowContent({
       </span>
 
       <div className="flex shrink-0 items-center gap-1.5">
-        {isLocked && (
+        {!compactMode && isLocked && (
           <Badge
             variant="outline"
             className="text-xs border-orange-400 text-orange-600 dark:border-orange-500 dark:text-orange-400"
@@ -178,7 +180,7 @@ export function TaskRowContent({
           </Badge>
         )}
 
-        {tagMap && task.tags?.map((tagId) => {
+        {!compactMode && tagMap && task.tags?.map((tagId) => {
           const tag = tagMap[tagId];
           if (!tag) return null;
           const colorStyle = TAG_COLORS[tag.color];
@@ -193,7 +195,7 @@ export function TaskRowContent({
           );
         })}
 
-        {task.recurrence && (
+        {!compactMode && task.recurrence && (
           <Badge
             variant="outline"
             className="flex items-center gap-1 text-xs"
@@ -204,7 +206,7 @@ export function TaskRowContent({
           </Badge>
         )}
 
-        {(task.completionHistory?.length ?? 0) > 0 && (
+        {!compactMode && (task.completionHistory?.length ?? 0) > 0 && (
           <span
             className="text-xs text-muted-foreground"
             title={`Completed ${task.completionHistory!.length} time${task.completionHistory!.length === 1 ? "" : "s"}`}
@@ -213,19 +215,23 @@ export function TaskRowContent({
           </span>
         )}
 
-        <Badge
-          variant="secondary"
-          className={cn("text-xs", priorityColors[task.priority])}
-        >
-          {task.priority}
-        </Badge>
+        {!compactMode && (
+          <Badge
+            variant="secondary"
+            className={cn("text-xs", priorityColors[task.priority])}
+          >
+            {task.priority}
+          </Badge>
+        )}
 
-        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          <ClipboardPlus className="h-3 w-3" />
-          {format(new Date(task.createdDate), "MMM d")}
-        </span>
+        {!compactMode && (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <ClipboardPlus className="h-3 w-3" />
+            {format(new Date(task.createdDate), "MMM d")}
+          </span>
+        )}
 
-        {task.startDate && (
+        {!compactMode && task.startDate && (
           <span
             className={cn(
               "flex items-center gap-1 text-xs text-muted-foreground",
@@ -237,14 +243,14 @@ export function TaskRowContent({
           </span>
         )}
 
-        {task.scheduledDate && (
+        {!compactMode && task.scheduledDate && (
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" />
             {format(parseISO(task.scheduledDate), "MMM d")}
           </span>
         )}
 
-        {task.dueDate && (
+        {!compactMode && task.dueDate && (
           <span
             className={cn(
               "flex items-center gap-1 text-xs text-muted-foreground",
@@ -256,14 +262,14 @@ export function TaskRowContent({
           </span>
         )}
 
-        {task.completed && task.completedDate && (
+        {!compactMode && task.completed && task.completedDate && (
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             <CheckCheck className="h-3 w-3" />
             {format(parseISO(task.completedDate), "MMM d")}
           </span>
         )}
 
-        {task.timeEstimateMs && !displayTimeMs && !isTimerActive ? (
+        {!compactMode && (task.timeEstimateMs && !displayTimeMs && !isTimerActive ? (
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             <Hourglass className="h-3 w-3" />
             Est {formatEstimate(task.timeEstimateMs)}
@@ -293,7 +299,7 @@ export function TaskRowContent({
           >
             {formatDuration(displayTimeMs)}
           </span>
-        ) : null}
+        ) : null)}
 
         {!task.completed && !isLocked && (
           <Button

@@ -6,6 +6,7 @@ import {
   TODAY_SORT_ORDER_KEY,
   TOMORROW_SORT_ORDER_KEY,
   COLLAPSED_TASKS_KEY,
+  COMPACT_MODE_KEY,
   TODAY_RECURRING_SECTION_KEY,
   TODAY_NON_RECURRING_SECTION_KEY,
   TOMORROW_RECURRING_SECTION_KEY,
@@ -79,6 +80,11 @@ export function gatherPreferences(): BackupPreferences {
     }
   }
 
+  const compactMode = localStorage.getItem(COMPACT_MODE_KEY);
+  if (compactMode !== null) {
+    prefs.compactMode = compactMode === "true";
+  }
+
   return prefs;
 }
 
@@ -109,6 +115,10 @@ export function restorePreferences(preferences: BackupPreferences): void {
     if (preferences[prefKey] !== undefined) {
       localStorage.setItem(storageKey, String(preferences[prefKey]));
     }
+  }
+
+  if (preferences.compactMode !== undefined) {
+    localStorage.setItem(COMPACT_MODE_KEY, String(preferences.compactMode));
   }
 }
 

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { startOfDay, addDays } from "date-fns";
-import { ListTodo, Plus, CalendarCheck, CalendarClock, GanttChartSquare } from "lucide-react";
+import { ListTodo, Plus, CalendarCheck, CalendarClock, GanttChartSquare, List, LayoutList } from "lucide-react";
 import { toast } from "sonner";
 import {
   DndContext,
@@ -24,6 +24,7 @@ import { useTaskStore } from "@/hooks/use-task-store";
 import { useTagStore } from "@/hooks/use-tag-store";
 import { useListStore } from "@/hooks/use-list-store";
 import { useTimer } from "@/hooks/use-timer";
+import { CompactModeProvider, useCompactMode } from "@/hooks/use-compact-mode";
 import { findItemDeep, flattenTree, excludeArchivedTasks, getChildCount } from "@/lib/tree-utils";
 import { sidebarAwareCollision } from "@/lib/dnd-collision";
 import { isSidebarDroppableId, getListIdFromDroppableId } from "@/lib/dnd-utils";
@@ -43,6 +44,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   SidebarProvider,
@@ -70,6 +77,28 @@ const dropAnimation = {
 };
 
 type SidebarView = "tasks" | "archived" | "tags";
+
+function CompactModeToggle() {
+  const { compactMode, toggleCompactMode } = useCompactMode();
+  return (
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" size="icon" onClick={toggleCompactMode}>
+            {compactMode ? (
+              <LayoutList className="h-4 w-4" />
+            ) : (
+              <List className="h-4 w-4" />
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{compactMode ? "Detailed view" : "Compact view"}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
 export default function Home() {
   useEffect(() => {
@@ -446,6 +475,7 @@ export default function Home() {
   }
 
   return (
+    <CompactModeProvider>
     <SidebarProvider>
       <DndContext
         sensors={sensors}
@@ -490,6 +520,7 @@ export default function Home() {
                     Add Task
                   </Button>
                 )}
+                <CompactModeToggle />
                 <ModeToggle />
               </div>
             </header>
@@ -665,5 +696,6 @@ export default function Home() {
         </DragOverlay>
       </DndContext>
     </SidebarProvider>
+    </CompactModeProvider>
   );
 }

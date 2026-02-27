@@ -78,6 +78,7 @@ export interface BackupPreferences {
   tomorrowNonRecurringSectionOpen?: boolean;
   todayOptionalSectionOpen?: boolean;
   tomorrowOptionalSectionOpen?: boolean;
+  compactMode?: boolean;
 }
 
 export interface BackupData {
