@@ -25,7 +25,12 @@ import { getBlockingTask } from "@/lib/dependency-utils";
 import { TaskItem } from "./task-item";
 
 const RECURRING_SECTION_KEY = "task-section-recurring-open";
-const NON_RECURRING_SECTION_KEY = "task-section-nonrecurring-open";
+const NON_RECURRING_SECTION_KEY = "task-section-nonrecurring-open"; // now used for "Scheduled"
+const UNSCHEDULED_SECTION_KEY = "task-section-unscheduled-open";
+
+function hasAnyDate(task: Task): boolean {
+  return !!(task.dueDate || task.scheduledDate || task.startDate);
+}
 
 /** Remove descendants of collapsed tasks from a flattened list. */
 function filterCollapsed(items: FlattenedTask[], collapsedIds: Set<string>): FlattenedTask[] {
@@ -142,7 +147,8 @@ export function TaskTree({
   }
 
   const [recurringOpen, setRecurringOpen] = useState(() => readSectionState(RECURRING_SECTION_KEY));
-  const [nonRecurringOpen, setNonRecurringOpen] = useState(() => readSectionState(NON_RECURRING_SECTION_KEY));
+  const [scheduledOpen, setScheduledOpen] = useState(() => readSectionState(NON_RECURRING_SECTION_KEY));
+  const [unscheduledOpen, setUnscheduledOpen] = useState(() => readSectionState(UNSCHEDULED_SECTION_KEY));
 
   function toggleRecurring() {
     setRecurringOpen((prev) => {
@@ -152,33 +158,53 @@ export function TaskTree({
     });
   }
 
-  function toggleNonRecurring() {
-    setNonRecurringOpen((prev) => {
+  function toggleScheduled() {
+    setScheduledOpen((prev) => {
       const next = !prev;
       localStorage.setItem(NON_RECURRING_SECTION_KEY, String(next));
       return next;
     });
   }
 
+  function toggleUnscheduled() {
+    setUnscheduledOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem(UNSCHEDULED_SECTION_KEY, String(next));
+      return next;
+    });
+  }
+
   const recurringTasks = useMemo(() => tasks.filter((t) => !!t.recurrence), [tasks]);
-  const nonRecurringTasks = useMemo(() => tasks.filter((t) => !t.recurrence), [tasks]);
+  const scheduledTasks = useMemo(() => tasks.filter((t) => !t.recurrence && hasAnyDate(t)), [tasks]);
+  const unscheduledTasks = useMemo(() => tasks.filter((t) => !t.recurrence && !hasAnyDate(t)), [tasks]);
 
   const fullFlattenedRecurring = useMemo(() => flattenTree(recurringTasks), [recurringTasks]);
-  const fullFlattenedNonRecurring = useMemo(() => flattenTree(nonRecurringTasks), [nonRecurringTasks]);
+  const fullFlattenedScheduled = useMemo(() => flattenTree(scheduledTasks), [scheduledTasks]);
+  const fullFlattenedUnscheduled = useMemo(() => flattenTree(unscheduledTasks), [unscheduledTasks]);
 
   const flattenedRecurring = useMemo(() => filterCollapsed(fullFlattenedRecurring, collapsedIds), [fullFlattenedRecurring, collapsedIds]);
-  const flattenedNonRecurring = useMemo(() => filterCollapsed(fullFlattenedNonRecurring, collapsedIds), [fullFlattenedNonRecurring, collapsedIds]);
+  const flattenedScheduled = useMemo(() => filterCollapsed(fullFlattenedScheduled, collapsedIds), [fullFlattenedScheduled, collapsedIds]);
+  const flattenedUnscheduled = useMemo(() => filterCollapsed(fullFlattenedUnscheduled, collapsedIds), [fullFlattenedUnscheduled, collapsedIds]);
 
   const recurringIds = useMemo(() => flattenedRecurring.map(({ id }) => id), [flattenedRecurring]);
-  const nonRecurringIds = useMemo(() => flattenedNonRecurring.map(({ id }) => id), [flattenedNonRecurring]);
+  const scheduledIds = useMemo(() => flattenedScheduled.map(({ id }) => id), [flattenedScheduled]);
+  const unscheduledIds = useMemo(() => flattenedUnscheduled.map(({ id }) => id), [flattenedUnscheduled]);
 
-  // Determine which group the active item belongs to
-  const activeIsRecurring = activeId
+  // Determine which of the 3 groups the active item belongs to
+  const activeSection: "recurring" | "scheduled" | "unscheduled" | null = activeId
     ? fullFlattenedRecurring.some(({ id }) => id === activeId)
-    : false;
+      ? "recurring"
+      : fullFlattenedScheduled.some(({ id }) => id === activeId)
+        ? "scheduled"
+        : fullFlattenedUnscheduled.some(({ id }) => id === activeId)
+          ? "unscheduled"
+          : null
+    : null;
 
-  const activeFlattenedItems = activeIsRecurring ? flattenedRecurring : flattenedNonRecurring;
-  const activeGroupTasks = activeIsRecurring ? recurringTasks : nonRecurringTasks;
+  const activeFlattenedItems =
+    activeSection === "recurring" ? flattenedRecurring
+    : activeSection === "scheduled" ? flattenedScheduled
+    : flattenedUnscheduled;
 
   // Guard overId against sidebar droppable IDs for projection
   const safeOverId = overId && !isSidebarDroppableId(String(overId)) ? overId : null;
@@ -202,10 +228,15 @@ export function TaskTree({
       // Skip if dropped on sidebar (handled by page.tsx)
       if (isSidebarDroppableId(String(over.id))) return;
 
-      // Skip if active item isn't in our groups
-      const activeInRecurring = fullFlattenedRecurring.some(({ id }) => id === active.id);
-      const activeInNonRecurring = fullFlattenedNonRecurring.some(({ id }) => id === active.id);
-      if (!activeInRecurring && !activeInNonRecurring) return;
+      // Determine which group the active item belongs to
+      const dragSection = fullFlattenedRecurring.some(({ id }) => id === active.id)
+        ? "recurring"
+        : fullFlattenedScheduled.some(({ id }) => id === active.id)
+          ? "scheduled"
+          : fullFlattenedUnscheduled.some(({ id }) => id === active.id)
+            ? "unscheduled"
+            : null;
+      if (!dragSection) return;
 
       if (active.id === over.id || !projected) return;
 
@@ -217,7 +248,12 @@ export function TaskTree({
         if (parent?.recurrence) return;
       }
 
-      const clonedItems = flattenTree(activeGroupTasks);
+      const dragGroupTasks =
+        dragSection === "recurring" ? recurringTasks
+        : dragSection === "scheduled" ? scheduledTasks
+        : unscheduledTasks;
+
+      const clonedItems = flattenTree(dragGroupTasks);
       const activeIndex = clonedItems.findIndex(({ id }) => id === active.id);
       const overIndex = clonedItems.findIndex(({ id }) => id === over.id);
 
@@ -233,10 +269,12 @@ export function TaskTree({
       const sortedItems = arrayMove(clonedItems, activeIndex, overIndex);
       const newGroupTree = buildTree(sortedItems);
 
-      const isRecurring = fullFlattenedRecurring.some(({ id }) => id === active.id);
-      const newTree = isRecurring
-        ? [...newGroupTree, ...nonRecurringTasks]
-        : [...recurringTasks, ...newGroupTree];
+      const newTree =
+        dragSection === "recurring"
+          ? [...newGroupTree, ...scheduledTasks, ...unscheduledTasks]
+          : dragSection === "scheduled"
+            ? [...recurringTasks, ...newGroupTree, ...unscheduledTasks]
+            : [...recurringTasks, ...scheduledTasks, ...newGroupTree];
 
       onReorder(newTree);
     },
@@ -291,13 +329,24 @@ export function TaskTree({
       </CollapsibleSection>
 
       <CollapsibleSection
-        title="Non-Recurring"
-        open={nonRecurringOpen}
-        onToggle={toggleNonRecurring}
-        count={nonRecurringTasks.length}
+        title="Scheduled"
+        open={scheduledOpen}
+        onToggle={toggleScheduled}
+        count={scheduledTasks.length}
       >
-        <SortableContext items={nonRecurringIds} strategy={verticalListSortingStrategy}>
-          {flattenedNonRecurring.map(renderTaskItem)}
+        <SortableContext items={scheduledIds} strategy={verticalListSortingStrategy}>
+          {flattenedScheduled.map(renderTaskItem)}
+        </SortableContext>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Unscheduled"
+        open={unscheduledOpen}
+        onToggle={toggleUnscheduled}
+        count={unscheduledTasks.length}
+      >
+        <SortableContext items={unscheduledIds} strategy={verticalListSortingStrategy}>
+          {flattenedUnscheduled.map(renderTaskItem)}
         </SortableContext>
       </CollapsibleSection>
     </>

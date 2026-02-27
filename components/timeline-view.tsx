@@ -7,8 +7,14 @@ import {
   type DragEndEvent,
   type UniqueIdentifier,
 } from "@dnd-kit/core";
-import { arrayMove } from "@dnd-kit/sortable";
-import { ChevronDown, ChevronLeft, ChevronRight, Maximize2, Minimize2 } from "lucide-react";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { ChevronDown, ChevronLeft, ChevronRight, GripVertical, Maximize2, Minimize2 } from "lucide-react";
 import { ChevronRight as ChevronRightIcon } from "lucide-react";
 import type { Task, Tag, FlattenedTask } from "@/lib/types";
 import {
@@ -25,14 +31,20 @@ import {
   COLLAPSED_TASKS_KEY,
   TIMELINE_RECURRING_SECTION_KEY,
   TIMELINE_NON_RECURRING_SECTION_KEY,
+  TIMELINE_UNSCHEDULED_SECTION_KEY,
 } from "@/lib/constants";
 import { useTimelineState } from "@/hooks/use-timeline-state";
 import { TimelineGrid } from "@/components/timeline-grid";
+import { TimelineTaskLabel } from "@/components/timeline-task-row";
 import { Button } from "@/components/ui/button";
 
 function readSectionState(key: string): boolean {
   if (typeof window === "undefined") return true;
   return localStorage.getItem(key) !== "false";
+}
+
+function hasAnyDate(task: Task): boolean {
+  return !!(task.dueDate || task.scheduledDate || task.startDate);
 }
 
 /** Remove descendants of collapsed tasks from a flattened list. */
@@ -78,6 +90,83 @@ function CollapsibleSection({ title, open, onToggle, children, count }: Collapsi
         <span className="ml-1 text-xs text-muted-foreground/60">({count})</span>
       </button>
       {open && children}
+    </div>
+  );
+}
+
+interface UnscheduledSortableItemProps {
+  task: FlattenedTask;
+  depth: number;
+  onToggle: (id: string) => void;
+  onEdit: (task: Task) => void;
+  tagMap?: Record<string, Tag>;
+  hasChildren: boolean;
+  isCollapsed: boolean;
+  onToggleCollapse: (id: string) => void;
+}
+
+function UnscheduledSortableItem({
+  task,
+  depth,
+  onToggle,
+  onEdit,
+  tagMap,
+  hasChildren,
+  isCollapsed,
+  onToggleCollapse,
+}: UnscheduledSortableItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : undefined,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} className="flex items-center">
+      <div
+        className="shrink-0"
+        style={{ width: `${depth * 16 + 4}px` }}
+      />
+      {hasChildren ? (
+        <button
+          onClick={() => onToggleCollapse(task.id)}
+          className="shrink-0 p-0.5 text-muted-foreground hover:text-foreground"
+        >
+          {isCollapsed ? (
+            <ChevronRightIcon className="h-3 w-3" />
+          ) : (
+            <ChevronDown className="h-3 w-3" />
+          )}
+        </button>
+      ) : (
+        <div className="shrink-0 w-4" />
+      )}
+      <button
+        ref={setActivatorNodeRef}
+        {...listeners}
+        className="shrink-0 cursor-grab touch-none text-muted-foreground/40 hover:text-muted-foreground"
+      >
+        <GripVertical className="h-3.5 w-3.5" />
+      </button>
+      <div className="flex-1 min-w-0">
+        <TimelineTaskLabel
+          task={task}
+          onToggle={onToggle}
+          onEdit={onEdit}
+          tagMap={tagMap}
+          indent={0}
+        />
+      </div>
     </div>
   );
 }
@@ -170,8 +259,11 @@ export function TimelineView({
   const [recurringOpen, setRecurringOpen] = useState(() =>
     readSectionState(TIMELINE_RECURRING_SECTION_KEY)
   );
-  const [nonRecurringOpen, setNonRecurringOpen] = useState(() =>
+  const [scheduledOpen, setScheduledOpen] = useState(() =>
     readSectionState(TIMELINE_NON_RECURRING_SECTION_KEY)
+  );
+  const [unscheduledOpen, setUnscheduledOpen] = useState(() =>
+    readSectionState(TIMELINE_UNSCHEDULED_SECTION_KEY)
   );
 
   function toggleRecurring() {
@@ -182,22 +274,40 @@ export function TimelineView({
     });
   }
 
-  function toggleNonRecurring() {
-    setNonRecurringOpen((prev) => {
+  function toggleScheduled() {
+    setScheduledOpen((prev) => {
       const next = !prev;
       localStorage.setItem(TIMELINE_NON_RECURRING_SECTION_KEY, String(next));
       return next;
     });
   }
 
-  // Split into recurring / non-recurring
+  function toggleUnscheduled() {
+    setUnscheduledOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem(TIMELINE_UNSCHEDULED_SECTION_KEY, String(next));
+      return next;
+    });
+  }
+
+  // Split into recurring / scheduled (non-recurring with dates visible this month)
   const recurringTasks = useMemo(
     () => visibleTasks.filter((t) => !!t.recurrence),
     [visibleTasks]
   );
-  const nonRecurringTasks = useMemo(
+  const scheduledTasks = useMemo(
     () => visibleTasks.filter((t) => !t.recurrence),
     [visibleTasks]
+  );
+
+  // Unscheduled: non-recurring tasks with no dates at all (from full filtered set)
+  const unscheduledTasks = useMemo(
+    () => excludeArchivedTasks(
+      (listFilter ? listFilter(tasks) : tasks).filter(
+        (t) => !t.recurrence && !hasAnyDate(t)
+      )
+    ),
+    [tasks, listFilter]
   );
 
   // Flatten each group
@@ -205,9 +315,13 @@ export function TimelineView({
     () => flattenTree(recurringTasks),
     [recurringTasks]
   );
-  const fullFlattenedNonRecurring = useMemo(
-    () => flattenTree(nonRecurringTasks),
-    [nonRecurringTasks]
+  const fullFlattenedScheduled = useMemo(
+    () => flattenTree(scheduledTasks),
+    [scheduledTasks]
+  );
+  const fullFlattenedUnscheduled = useMemo(
+    () => flattenTree(unscheduledTasks),
+    [unscheduledTasks]
   );
 
   // Filter out collapsed descendants
@@ -215,9 +329,13 @@ export function TimelineView({
     () => filterCollapsed(fullFlattenedRecurring, collapsedIds),
     [fullFlattenedRecurring, collapsedIds]
   );
-  const flattenedNonRecurring = useMemo(
-    () => filterCollapsed(fullFlattenedNonRecurring, collapsedIds),
-    [fullFlattenedNonRecurring, collapsedIds]
+  const flattenedScheduled = useMemo(
+    () => filterCollapsed(fullFlattenedScheduled, collapsedIds),
+    [fullFlattenedScheduled, collapsedIds]
+  );
+  const flattenedUnscheduled = useMemo(
+    () => filterCollapsed(fullFlattenedUnscheduled, collapsedIds),
+    [fullFlattenedUnscheduled, collapsedIds]
   );
 
   // Sortable IDs
@@ -225,22 +343,34 @@ export function TimelineView({
     () => flattenedRecurring.map(({ id }) => id),
     [flattenedRecurring]
   );
-  const nonRecurringIds = useMemo(
-    () => flattenedNonRecurring.map(({ id }) => id),
-    [flattenedNonRecurring]
+  const scheduledIds = useMemo(
+    () => flattenedScheduled.map(({ id }) => id),
+    [flattenedScheduled]
+  );
+  const unscheduledIds = useMemo(
+    () => flattenedUnscheduled.map(({ id }) => id),
+    [flattenedUnscheduled]
   );
 
-  // Determine which group the active item belongs to
-  const activeIsRecurring = activeId
+  // Determine which of the 3 groups the active item belongs to
+  const activeSection: "recurring" | "scheduled" | "unscheduled" | null = activeId
     ? fullFlattenedRecurring.some(({ id }) => id === activeId)
-    : false;
+      ? "recurring"
+      : fullFlattenedScheduled.some(({ id }) => id === activeId)
+        ? "scheduled"
+        : fullFlattenedUnscheduled.some(({ id }) => id === activeId)
+          ? "unscheduled"
+          : null
+    : null;
 
-  const activeFlattenedItems = activeIsRecurring
-    ? flattenedRecurring
-    : flattenedNonRecurring;
-  const activeGroupTasks = activeIsRecurring
-    ? recurringTasks
-    : nonRecurringTasks;
+  const activeFlattenedItems =
+    activeSection === "recurring" ? flattenedRecurring
+    : activeSection === "scheduled" ? flattenedScheduled
+    : flattenedUnscheduled;
+  const activeGroupTasks =
+    activeSection === "recurring" ? recurringTasks
+    : activeSection === "scheduled" ? scheduledTasks
+    : unscheduledTasks;
 
   // Guard overId against sidebar droppable IDs
   const safeOverId =
@@ -266,14 +396,15 @@ export function TimelineView({
       // Skip sidebar drops (handled by page.tsx)
       if (isSidebarDroppableId(String(over.id))) return;
 
-      // Skip if active item isn't in our groups
-      const activeInRecurring = fullFlattenedRecurring.some(
-        ({ id }) => id === active.id
-      );
-      const activeInNonRecurring = fullFlattenedNonRecurring.some(
-        ({ id }) => id === active.id
-      );
-      if (!activeInRecurring && !activeInNonRecurring) return;
+      // Determine which group the active item belongs to
+      const dragSection = fullFlattenedRecurring.some(({ id }) => id === active.id)
+        ? "recurring"
+        : fullFlattenedScheduled.some(({ id }) => id === active.id)
+          ? "scheduled"
+          : fullFlattenedUnscheduled.some(({ id }) => id === active.id)
+            ? "unscheduled"
+            : null;
+      if (!dragSection) return;
 
       if (active.id === over.id || !projected) return;
 
@@ -285,7 +416,12 @@ export function TimelineView({
         if (parent?.recurrence) return;
       }
 
-      const clonedItems = flattenTree(activeGroupTasks);
+      const dragGroupTasks =
+        dragSection === "recurring" ? recurringTasks
+        : dragSection === "scheduled" ? scheduledTasks
+        : unscheduledTasks;
+
+      const clonedItems = flattenTree(dragGroupTasks);
       const activeIndex = clonedItems.findIndex(({ id }) => id === active.id);
       const overIndex = clonedItems.findIndex(({ id }) => id === over.id);
 
@@ -301,14 +437,21 @@ export function TimelineView({
       const sortedItems = arrayMove(clonedItems, activeIndex, overIndex);
       const newGroupTree = buildTree(sortedItems);
 
-      const isRecurring = fullFlattenedRecurring.some(
-        ({ id }) => id === active.id
-      );
-      // Merge reordered group + other visible group + tasks not in timeline
-      // so that tasks without dates (or dates outside this month) aren't lost
-      const newTree = isRecurring
-        ? [...newGroupTree, ...nonRecurringTasks, ...tasksNotInTimeline]
-        : [...recurringTasks, ...newGroupTree, ...tasksNotInTimeline];
+      // Merge: reordered group + other groups + tasks not in timeline
+      // For unscheduled reorders, tasksNotInTimeline won't contain unscheduled
+      // tasks (they're filtered separately), so we exclude them to avoid dupes
+      let newTree: Task[];
+      if (dragSection === "recurring") {
+        newTree = [...newGroupTree, ...scheduledTasks, ...tasksNotInTimeline];
+      } else if (dragSection === "scheduled") {
+        newTree = [...recurringTasks, ...newGroupTree, ...tasksNotInTimeline];
+      } else {
+        // Unscheduled: merge visible timeline tasks + not-in-timeline + reordered unscheduled
+        const notInTimelineExcludingUnscheduled = tasksNotInTimeline.filter(
+          (t) => t.recurrence || hasAnyDate(t)
+        );
+        newTree = [...recurringTasks, ...scheduledTasks, ...notInTimelineExcludingUnscheduled, ...newGroupTree];
+      }
 
       onReorder(newTree);
     },
@@ -388,8 +531,8 @@ export function TimelineView({
                 onEdit={onEdit}
                 updateTask={updateTask}
                 tagMap={tagMap}
-                activeId={activeIsRecurring ? activeIdStr : null}
-                projected={activeIsRecurring ? projected : null}
+                activeId={activeSection === "recurring" ? activeIdStr : null}
+                projected={activeSection === "recurring" ? projected : null}
                 collapsedIds={collapsedIds}
                 onToggleCollapse={toggleCollapsed}
               />
@@ -397,30 +540,61 @@ export function TimelineView({
           </CollapsibleSection>
 
           <CollapsibleSection
-            title="Non-Recurring"
-            open={nonRecurringOpen}
-            onToggle={toggleNonRecurring}
-            count={nonRecurringTasks.length}
+            title="Scheduled"
+            open={scheduledOpen}
+            onToggle={toggleScheduled}
+            count={scheduledTasks.length}
           >
-            {flattenedNonRecurring.length > 0 ? (
+            {flattenedScheduled.length > 0 ? (
               <TimelineGrid
                 allTasks={tasks}
-                flattenedItems={flattenedNonRecurring}
-                sortableIds={nonRecurringIds}
+                flattenedItems={flattenedScheduled}
+                sortableIds={scheduledIds}
                 monthStart={currentMonth}
                 monthEnd={monthEnd}
                 onToggle={onToggle}
                 onEdit={onEdit}
                 updateTask={updateTask}
                 tagMap={tagMap}
-                activeId={!activeIsRecurring ? activeIdStr : null}
-                projected={!activeIsRecurring ? projected : null}
+                activeId={activeSection === "scheduled" ? activeIdStr : null}
+                projected={activeSection === "scheduled" ? projected : null}
                 collapsedIds={collapsedIds}
                 onToggleCollapse={toggleCollapsed}
               />
             ) : null}
           </CollapsibleSection>
         </>
+      )}
+
+      {unscheduledTasks.length > 0 && (
+        <CollapsibleSection
+          title="Unscheduled"
+          open={unscheduledOpen}
+          onToggle={toggleUnscheduled}
+          count={unscheduledTasks.length}
+        >
+          <div className="rounded-md border border-border">
+            <SortableContext items={unscheduledIds} strategy={verticalListSortingStrategy}>
+              {flattenedUnscheduled.map((task) => (
+                <UnscheduledSortableItem
+                  key={task.id}
+                  task={task}
+                  depth={
+                    task.id === (activeId as string) && projected && activeSection === "unscheduled"
+                      ? projected.depth
+                      : task.depth
+                  }
+                  onToggle={onToggle}
+                  onEdit={onEdit}
+                  tagMap={tagMap}
+                  hasChildren={task.children.length > 0}
+                  isCollapsed={collapsedIds.has(task.id)}
+                  onToggleCollapse={toggleCollapsed}
+                />
+              ))}
+            </SortableContext>
+          </div>
+        </CollapsibleSection>
       )}
     </div>
   );

@@ -21,7 +21,8 @@ export const SIDEBAR_INBOX_DROPPABLE_ID = "sidebar-inbox";
 
 export const TIMELINE_MONTH_KEY = "timeline-current-month";
 export const TIMELINE_RECURRING_SECTION_KEY = "timeline-section-recurring-open";
-export const TIMELINE_NON_RECURRING_SECTION_KEY = "timeline-section-nonrecurring-open";
+export const TIMELINE_NON_RECURRING_SECTION_KEY = "timeline-section-nonrecurring-open"; // now "Scheduled"
+export const TIMELINE_UNSCHEDULED_SECTION_KEY = "timeline-section-unscheduled-open";
 export const TIMELINE_DAY_MIN_WIDTH = 32;
 export const TIMELINE_LABEL_WIDTH = 200;
 export const TIMELINE_ROW_HEIGHT = 36;
