@@ -13,7 +13,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isBefore, isAfter } from "date-fns";
 
 interface TimelineTaskRowProps {
   task: Task;
@@ -134,8 +134,34 @@ export function TimelineTaskBar({
   }
 
   const single = columns.startCol === columns.endCol;
-  const leftPercent = ((columns.startCol - 1) / daysInMonth) * 100;
-  const widthPercent = ((columns.endCol - columns.startCol + 1) / daysInMonth) * 100;
+
+  // Determine if start/end/scheduled dates fall outside the visible month
+  const range = getTaskDateRange(task);
+  const startOutOfRange = range.start ? isBefore(parseISO(range.start), monthStart) : false;
+  const endOutOfRange = range.end ? isAfter(parseISO(range.end), monthEnd) : false;
+  const scheduledOutOfRange = task.scheduledDate
+    ? isBefore(parseISO(task.scheduledDate), monthStart) || isAfter(parseISO(task.scheduledDate), monthEnd)
+    : false;
+
+  // Position the bar container:
+  //   Single-day: full day-column width (dot centered inside)
+  //   Range: center-to-center so endpoints land on day-column centers,
+  //          extending to the column edge when an endpoint is out of month
+  let leftPercent: number;
+  let widthPercent: number;
+  if (single) {
+    leftPercent = ((columns.startCol - 1) / daysInMonth) * 100;
+    widthPercent = (1 / daysInMonth) * 100;
+  } else {
+    const left = startOutOfRange
+      ? ((columns.startCol - 1) / daysInMonth) * 100
+      : ((columns.startCol - 0.5) / daysInMonth) * 100;
+    const right = endOutOfRange
+      ? (columns.endCol / daysInMonth) * 100
+      : ((columns.endCol - 0.5) / daysInMonth) * 100;
+    leftPercent = left;
+    widthPercent = right - left;
+  }
 
   // Compute scheduled date marker position as a percentage within the bar
   let scheduledDatePercent: number | undefined;
@@ -143,9 +169,10 @@ export function TimelineTaskBar({
     const clampedScheduled = clampToMonth(task.scheduledDate, monthStart, monthEnd);
     const scheduledCol = getDayColumn(clampedScheduled);
     if (scheduledCol >= columns.startCol && scheduledCol <= columns.endCol) {
-      const span = columns.endCol - columns.startCol;
-      if (span > 0) {
-        scheduledDatePercent = ((scheduledCol - columns.startCol) / span) * 100;
+      // Map the center of the scheduled day column to a % within the container
+      const scheduledCenter = ((scheduledCol - 0.5) / daysInMonth) * 100;
+      if (widthPercent > 0) {
+        scheduledDatePercent = ((scheduledCenter - leftPercent) / widthPercent) * 100;
       }
     }
   }
@@ -167,6 +194,9 @@ export function TimelineTaskBar({
           dragType={isThisDragging ? dragType : null}
           previewOffset={isThisDragging ? previewOffset : 0}
           scheduledDatePercent={scheduledDatePercent}
+          startOutOfRange={startOutOfRange}
+          endOutOfRange={endOutOfRange}
+          scheduledOutOfRange={scheduledOutOfRange}
           onBarPointerDown={onBarPointerDown}
           onStartEndpointPointerDown={onStartEndpointPointerDown}
           onEndEndpointPointerDown={onEndEndpointPointerDown}

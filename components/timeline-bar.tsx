@@ -11,6 +11,9 @@ interface TimelineBarProps {
   dragType: DragType | null;
   previewOffset: number;
   scheduledDatePercent?: number;
+  startOutOfRange?: boolean;
+  endOutOfRange?: boolean;
+  scheduledOutOfRange?: boolean;
   onBarPointerDown: (taskId: string, e: React.PointerEvent) => void;
   onStartEndpointPointerDown: (taskId: string, e: React.PointerEvent) => void;
   onEndEndpointPointerDown: (taskId: string, e: React.PointerEvent) => void;
@@ -25,6 +28,9 @@ export function TimelineBar({
   dragType,
   previewOffset,
   scheduledDatePercent,
+  startOutOfRange,
+  endOutOfRange,
+  scheduledOutOfRange,
   onBarPointerDown,
   onStartEndpointPointerDown,
   onEndEndpointPointerDown,
@@ -65,10 +71,10 @@ export function TimelineBar({
       className={cn("relative flex items-center w-full h-5", isDragging && "z-10")}
       style={{ transform: barTransform }}
     >
-      {/* Bar body (connecting line) */}
+      {/* Bar body (connecting line) — spans full container (center-to-center) */}
       <div
         className={cn(
-          "absolute inset-x-[7px] top-1/2 -translate-y-1/2 h-[3px] rounded-full cursor-grab active:cursor-grabbing transition-colors",
+          "absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[3px] rounded-full cursor-grab active:cursor-grabbing transition-colors",
           completed
             ? "bg-muted-foreground/30"
             : "bg-blue-500 dark:bg-blue-400"
@@ -76,11 +82,11 @@ export function TimelineBar({
         onPointerDown={(e) => onBarPointerDown(taskId, e)}
       />
 
-      {/* Start endpoint — hidden when scheduled marker overlaps it */}
-      {!(scheduledOverlapsStart && !scheduledHasMoved) && (
+      {/* Start endpoint — centered on day column, hidden when out of month or scheduled marker overlaps */}
+      {!startOutOfRange && !(scheduledOverlapsStart && !scheduledHasMoved) && (
         <div
           className={cn(
-            "absolute left-0 top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full border-2 cursor-ew-resize z-10 transition-colors",
+            "absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 h-3.5 w-3.5 rounded-full border-2 cursor-ew-resize z-10 transition-colors",
             completed
               ? "bg-muted-foreground/40 border-background"
               : "bg-blue-500 dark:bg-blue-400 border-background"
@@ -92,11 +98,11 @@ export function TimelineBar({
         />
       )}
 
-      {/* End endpoint — hidden when scheduled marker overlaps it */}
-      {!(scheduledOverlapsEnd && !scheduledHasMoved) && (
+      {/* End endpoint — centered on day column, hidden when out of month or scheduled marker overlaps */}
+      {!endOutOfRange && !(scheduledOverlapsEnd && !scheduledHasMoved) && (
         <div
           className={cn(
-            "absolute right-0 top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full border-2 cursor-ew-resize z-10 transition-colors",
+            "absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 h-3.5 w-3.5 rounded-full border-2 cursor-ew-resize z-10 transition-colors",
             completed
               ? "bg-muted-foreground/40 border-background"
               : "bg-blue-500 dark:bg-blue-400 border-background"
@@ -108,8 +114,8 @@ export function TimelineBar({
         />
       )}
 
-      {/* Scheduled date marker */}
-      {scheduledDatePercent !== undefined && (
+      {/* Scheduled date marker — hidden when out of month */}
+      {scheduledDatePercent !== undefined && !scheduledOutOfRange && (
         <div
           className={cn(
             "absolute top-1/2 h-3 w-3 z-10 cursor-ew-resize transition-colors",
