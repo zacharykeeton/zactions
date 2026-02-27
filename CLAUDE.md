@@ -10,6 +10,7 @@ A recursive to-do app built with Next.js 16.1.6, featuring infinite nesting of t
 - **Tailwind CSS v4** with PostCSS
 - **shadcn/ui** component system (new-york style)
 - **@dnd-kit** (core, sortable, utilities) for drag and drop
+- **cmdk** for command palette UI
 - **date-fns** for date formatting
 - **uuid** for ID generation
 - **next-themes** for dark/light mode switching
@@ -49,8 +50,11 @@ hooks/
   use-timer.ts        — Time-tracking timer hook
   use-today-sort-order.ts — Sort order for Today/Tomorrow lists (localStorage)
   use-mobile.ts       — Mobile breakpoint detection
+  use-timeline-state.ts — Timeline view state (date range, zoom)
+  use-timeline-drag.ts  — Timeline-specific drag logic
+  use-grid-day-width.ts — Responsive day-column width calculation
 components/
-  ui/                 — shadcn/ui components (button, input, checkbox, dialog, popover, calendar, select, badge, label, dropdown-menu, tabs, progress, sonner, sidebar, separator, sheet, skeleton, tooltip)
+  ui/                 — shadcn/ui components (badge, button, calendar, checkbox, command, dialog, dropdown-menu, input, label, popover, progress, select, separator, sheet, sidebar, skeleton, sonner, tabs, tooltip)
   app-sidebar.tsx     — Sidebar nav: list switching, archived/tags views
   droppable-sidebar-item.tsx — DnD-droppable sidebar list item (drop task → move to list)
   list-form.tsx       — Add/edit task list dialog
@@ -62,6 +66,12 @@ components/
   task-form.tsx       — Add/Edit task dialog (title, priority, due/scheduled date, tags, list)
   today-list.tsx      — "Today" view: filters tasks scheduled/due today
   today-task-item.tsx — Task item variant for the Today list
+  timeline-view.tsx   — Timeline (Gantt-style) view: renders tasks on a date grid
+  timeline-grid.tsx   — Date column grid background for the timeline
+  timeline-bar.tsx    — Individual task bar rendered on the timeline
+  timeline-sortable-row.tsx — Sortable row wrapper for timeline tasks
+  timeline-task-row.tsx     — Single task row in the timeline
+  timeline-task-group.tsx   — Grouped task rows in the timeline
   archived-list.tsx   — Archived tasks view
 lib/
   types.ts            — Task, FlattenedTask, Tag, TaskList, BackupData types
@@ -73,10 +83,21 @@ lib/
   recurrence-utils.test.ts — Unit tests for recurrence logic
   backup-utils.ts     — JSON backup export/import logic
   backup-utils.test.ts — Unit tests for backup/restore
+  dependency-utils.ts — Task dependency graph logic (dependsOn field)
+  dependency-utils.test.ts — Unit tests for dependency utils
   dnd-collision.ts    — Custom collision detection (sidebar-aware: sidebar items take priority)
   dnd-utils.ts        — DnD helper functions (isSidebarDroppableId, getListIdFromDroppableId)
+  dnd-utils.test.ts   — Unit tests for DnD utils
+  tag-utils.ts        — Tag helper functions
+  tag-utils.test.ts   — Unit tests for tag utils
+  task-store-utils.ts — Shared task store helper functions
+  task-store-utils.test.ts — Unit tests for task store utils
   time-utils.ts       — Time formatting helpers
+  time-utils.test.ts  — Unit tests for time utils
+  timeline-utils.ts   — Timeline date range and positioning calculations
+  timeline-utils.test.ts — Unit tests for timeline utils
   today-sort-utils.ts — Sort utilities for Today view
+  today-sort-utils.test.ts — Unit tests for today sort utils
   completion-sound.ts — Audio feedback on task completion
 vitest.config.ts      — Vitest test runner config (globals, node env, @ alias)
 ```
@@ -90,15 +111,18 @@ interface Task {
   priority: "low" | "medium" | "high";
   dueDate: string | null;       // ISO date
   scheduledDate: string | null;  // ISO date
+  startDate: string | null;      // ISO date (timeline start)
   completedDate: string | null;  // ISO date, auto-set on toggle
   createdDate: string;           // ISO date
   children: Task[];              // recursive subtasks (infinite nesting)
   recurrence?: RecurrencePattern; // daily | weekly | monthly | yearly (+ daysOfWeek)
   completionHistory?: CompletionRecord[]; // tracks past completions for recurring tasks
   timeInvestedMs: number;        // tracked time spent on task
+  timeEstimateMs: number | null; // estimated time to complete
   archived: boolean;             // soft-delete / archive flag
   tags?: string[];               // array of Tag IDs
   listId?: string;               // TaskList ID (undefined = Inbox / all tasks)
+  dependsOn?: string[];          // IDs of tasks this task depends on
 }
 
 // Also in types.ts:
@@ -141,7 +165,7 @@ The sidebar (`AppSidebar`) controls what is shown in the main content area:
 - **Tags** — tag management (`TagManager` component)
 
 `SidebarView` state in `page.tsx`: `"tasks" | "archived" | "tags"`
-`ActiveListFilter` (from `app-sidebar.tsx`): `"all" | "today" | "tomorrow" | string` (string = list ID)
+`ActiveListFilter` (from `app-sidebar.tsx`): `"all" | "inbox" | string` (string = specific list ID)
 
 ### State Management
 
