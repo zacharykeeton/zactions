@@ -9,3 +9,13 @@ export function formatDuration(ms: number): string {
   }
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
+
+export function formatEstimate(ms: number): string {
+  const totalMinutes = Math.round(ms / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h`;
+  return `${minutes}m`;
+}

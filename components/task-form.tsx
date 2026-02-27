@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { format, parseISO } from "date-fns";
-import { CalendarIcon, CalendarPlus, Check, ChevronsUpDown, Link, Repeat, X } from "lucide-react";
+import { CalendarIcon, CalendarPlus, Check, ChevronsUpDown, Hourglass, Link, Repeat, X } from "lucide-react";
 import type { Task, TaskList, Tag, Priority, RecurrenceInterval, DayOfWeek, RecurrencePattern } from "@/lib/types";
 import { TAG_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -52,6 +52,7 @@ interface TaskFormProps {
     tags?: string[];
     listId?: string;
     dependsOn?: string[];
+    timeEstimateMs?: number | null;
   }) => void;
   onCancel: () => void;
 }
@@ -103,6 +104,15 @@ export function TaskForm({
   );
   const [depPickerOpen, setDepPickerOpen] = useState(false);
 
+  const [estimateHours, setEstimateHours] = useState(() => {
+    if (!initialData?.timeEstimateMs) return "";
+    return String(Math.floor(initialData.timeEstimateMs / 3600000));
+  });
+  const [estimateMinutes, setEstimateMinutes] = useState(() => {
+    if (!initialData?.timeEstimateMs) return "";
+    return String(Math.round((initialData.timeEstimateMs % 3600000) / 60000));
+  });
+
   const isSubtask = parentId !== null;
   const canSubmit = title.trim() && !(isRecurring && !dueDate);
 
@@ -139,6 +149,10 @@ export function TaskForm({
           }
         : undefined;
 
+    const h = parseInt(estimateHours, 10) || 0;
+    const m = parseInt(estimateMinutes, 10) || 0;
+    const totalEstimateMs = (h * 3600000) + (m * 60000);
+
     onSubmit({
       title: title.trim(),
       priority,
@@ -150,6 +164,7 @@ export function TaskForm({
       tags: selectedTags.length > 0 ? selectedTags : undefined,
       listId: selectedListId === "__inbox__" ? undefined : selectedListId,
       dependsOn: selectedDependency ? [selectedDependency] : undefined,
+      timeEstimateMs: totalEstimateMs > 0 ? totalEstimateMs : null,
     });
   }
 
@@ -520,6 +535,70 @@ export function TaskForm({
               <X className="size-4" />
             </button>
           )}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label className="flex items-center gap-1.5">
+          <Hourglass className="h-4 w-4" />
+          Time Estimate
+        </Label>
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            min={0}
+            max={99}
+            value={estimateHours}
+            onChange={(e) => setEstimateHours(e.target.value)}
+            placeholder="0"
+            className="w-20 text-center"
+          />
+          <span className="text-sm text-muted-foreground">h</span>
+          <Input
+            type="number"
+            min={0}
+            max={59}
+            value={estimateMinutes}
+            onChange={(e) => setEstimateMinutes(e.target.value)}
+            placeholder="0"
+            className="w-20 text-center"
+          />
+          <span className="text-sm text-muted-foreground">m</span>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {([
+            ["15m", 0, 15],
+            ["30m", 0, 30],
+            ["1h", 1, 0],
+            ["2h", 2, 0],
+            ["4h", 4, 0],
+          ] as [string, number, number][]).map(([label, h, m]) => (
+            <Button
+              key={label}
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => {
+                setEstimateHours(h > 0 ? String(h) : "");
+                setEstimateMinutes(m > 0 ? String(m) : "");
+              }}
+            >
+              {label}
+            </Button>
+          ))}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs text-muted-foreground"
+            onClick={() => {
+              setEstimateHours("");
+              setEstimateMinutes("");
+            }}
+          >
+            Clear
+          </Button>
         </div>
       </div>
 

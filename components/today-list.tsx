@@ -2,7 +2,7 @@
 
 import { useMemo, useEffect, useState } from "react";
 import { startOfDay } from "date-fns";
-import { CalendarCheck, ChevronDown, ChevronRight } from "lucide-react";
+import { CalendarCheck, ChevronDown, ChevronRight, Clock, Hourglass } from "lucide-react";
 import { useDndMonitor, type DragEndEvent } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -20,6 +20,7 @@ import {
   TODAY_OPTIONAL_SECTION_KEY,
 } from "@/lib/constants";
 import { isSidebarDroppableId } from "@/lib/dnd-utils";
+import { formatEstimate } from "@/lib/time-utils";
 import { getBlockingTask } from "@/lib/dependency-utils";
 import { Progress } from "@/components/ui/progress";
 import { TodayTaskItem } from "@/components/today-task-item";
@@ -155,6 +156,26 @@ export function TodayList({
   );
   const optionalIds = useMemo(() => sortedOptionalTasks.map((t) => t.id), [sortedOptionalTasks]);
 
+  const timeBudget = useMemo(() => {
+    const allDayTasks = [...sortedTodayTasks, ...sortedOptionalTasks];
+    let totalEstimateMs = 0;
+    let totalInvestedMs = 0;
+    let hasEstimate = false;
+
+    for (const task of allDayTasks) {
+      if (task.timeEstimateMs) {
+        totalEstimateMs += task.timeEstimateMs;
+        hasEstimate = true;
+      }
+      totalInvestedMs += task.timeInvestedMs;
+      if (task.id === activeTimerId) {
+        totalInvestedMs += currentElapsedMs;
+      }
+    }
+
+    return { totalEstimateMs, totalInvestedMs, hasEstimate };
+  }, [sortedTodayTasks, sortedOptionalTasks, activeTimerId, currentElapsedMs]);
+
   const sortedIds = useMemo(
     () => [...sortedTodayTasks, ...sortedOptionalTasks].map(({ id }) => id),
     [sortedTodayTasks, sortedOptionalTasks]
@@ -274,6 +295,20 @@ export function TodayList({
           </div>
         </div>
         <Progress value={completionPercent} className="h-2" />
+        {timeBudget.hasEstimate && (
+          <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Hourglass className="h-3 w-3" />
+              Estimated: {formatEstimate(timeBudget.totalEstimateMs)}
+            </span>
+            {timeBudget.totalInvestedMs > 0 && (
+              <span className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                Invested: {formatEstimate(timeBudget.totalInvestedMs)}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       <CollapsibleSection

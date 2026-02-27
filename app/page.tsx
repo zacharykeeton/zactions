@@ -327,6 +327,7 @@ export default function Home() {
     tags?: string[];
     listId?: string;
     dependsOn?: string[];
+    timeEstimateMs?: number | null;
   }) {
     if (editingTask) {
       // If list changed, clear dependencies (same-list only)
@@ -341,6 +342,7 @@ export default function Home() {
         tags: data.tags,
         listId: data.listId,
         dependsOn: listChanged ? undefined : data.dependsOn,
+        timeEstimateMs: data.timeEstimateMs ?? null,
       });
     } else {
       addTask(
@@ -353,7 +355,8 @@ export default function Home() {
         data.recurrence,
         data.tags,
         data.listId,
-        data.dependsOn
+        data.dependsOn,
+        data.timeEstimateMs
       );
     }
     setDialogOpen(false);

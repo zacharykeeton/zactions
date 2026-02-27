@@ -54,6 +54,7 @@ export interface Task {
   recurrence?: RecurrencePattern;
   completionHistory?: CompletionRecord[];
   timeInvestedMs: number;
+  timeEstimateMs: number | null;
   archived: boolean;
   tags?: string[];
   listId?: string;

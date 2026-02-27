@@ -18,6 +18,7 @@ function makeTask(overrides: Partial<Task> & { id: string; title: string }): Tas
     createdDate: "2025-01-01",
     children: [],
     timeInvestedMs: 0,
+    timeEstimateMs: null,
     archived: false,
     ...overrides,
   };

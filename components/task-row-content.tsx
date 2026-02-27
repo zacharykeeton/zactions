@@ -10,6 +10,7 @@ import {
   CalendarPlus,
   ClipboardPlus,
   Clock,
+  Hourglass,
   Repeat,
   Play,
   Pause,
@@ -25,7 +26,7 @@ import { formatRecurrencePattern } from "@/lib/recurrence-utils";
 import { priorityColors, TAG_COLORS } from "@/lib/constants";
 import type { Task, Tag } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { formatDuration } from "@/lib/time-utils";
+import { formatDuration, formatEstimate } from "@/lib/time-utils";
 import { playCompletionSound } from "@/lib/completion-sound";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -260,7 +261,26 @@ export function TaskRowContent({
           </span>
         )}
 
-        {(displayTimeMs > 0 || isTimerActive) && (
+        {task.timeEstimateMs && !displayTimeMs && !isTimerActive ? (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Hourglass className="h-3 w-3" />
+            Est {formatEstimate(task.timeEstimateMs)}
+          </span>
+        ) : task.timeEstimateMs && (displayTimeMs > 0 || isTimerActive) ? (
+          <span
+            className={cn(
+              "flex items-center gap-1 text-xs tabular-nums",
+              isTimerActive
+                ? "text-blue-600 dark:text-blue-400"
+                : displayTimeMs > task.timeEstimateMs
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-green-600 dark:text-green-400"
+            )}
+          >
+            <Hourglass className="h-3 w-3" />
+            {formatEstimate(displayTimeMs)} / {formatEstimate(task.timeEstimateMs)}
+          </span>
+        ) : (displayTimeMs > 0 || isTimerActive) ? (
           <span
             className={cn(
               "font-mono text-xs tabular-nums",
@@ -271,7 +291,7 @@ export function TaskRowContent({
           >
             {formatDuration(displayTimeMs)}
           </span>
-        )}
+        ) : null}
 
         {!task.completed && !isLocked && (
           <Button

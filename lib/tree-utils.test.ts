@@ -16,6 +16,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     createdDate: '2026-02-01',
     children: [],
     timeInvestedMs: 0,
+    timeEstimateMs: null,
     archived: false,
     ...overrides,
   };

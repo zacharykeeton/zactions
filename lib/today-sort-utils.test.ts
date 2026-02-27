@@ -14,6 +14,7 @@ function makeTask(overrides: Partial<Task> & { id: string; priority: Task["prior
     createdDate: "2026-01-01",
     children: [],
     timeInvestedMs: 0,
+    timeEstimateMs: null,
     archived: false,
     ...overrides,
   };

@@ -18,6 +18,7 @@ export function migrateTask(task: Task): Task {
     ...task,
     startDate: task.startDate ?? null,
     timeInvestedMs: task.timeInvestedMs ?? 0,
+    timeEstimateMs: task.timeEstimateMs ?? null,
     archived: task.archived ?? false,
     completionHistory,
     children: task.children.map(migrateTask),
