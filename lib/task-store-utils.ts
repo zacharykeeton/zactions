@@ -7,9 +7,9 @@ export function migrateTask(task: Task): Task {
     completionHistory = (completionHistory as unknown as Array<string | CompletionRecord>).map(
       (entry): CompletionRecord => {
         if (typeof entry === "string") {
-          return { scheduledDate: null, dueDate: null, completedAt: entry };
+          return { scheduledDate: null, dueDate: null, completedAt: entry, timeInvestedMs: 0 };
         }
-        return entry;
+        return { timeInvestedMs: 0, ...entry };
       }
     );
   }

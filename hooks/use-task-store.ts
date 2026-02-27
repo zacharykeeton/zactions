@@ -147,10 +147,12 @@ export function useTaskStore() {
                 completed: false,
                 dueDate: nextDue,
                 completedDate: null,
+                timeInvestedMs: 0,
                 completionHistory: [...(item.completionHistory || []), {
                   scheduledDate: item.scheduledDate,
                   dueDate: item.dueDate!,
                   completedAt: now,
+                  timeInvestedMs: item.timeInvestedMs,
                 } as CompletionRecord],
               };
             }

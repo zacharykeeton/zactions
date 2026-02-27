@@ -36,14 +36,14 @@ describe("migrateTask", () => {
     const migrated = migrateTask(task);
 
     expect(migrated.completionHistory).toEqual([
-      { scheduledDate: null, dueDate: null, completedAt: "2026-01-01T00:00:00Z" },
-      { scheduledDate: null, dueDate: null, completedAt: "2026-01-02T00:00:00Z" },
+      { scheduledDate: null, dueDate: null, completedAt: "2026-01-01T00:00:00Z", timeInvestedMs: 0 },
+      { scheduledDate: null, dueDate: null, completedAt: "2026-01-02T00:00:00Z", timeInvestedMs: 0 },
     ]);
   });
 
   it("leaves already-migrated CompletionRecord[] unchanged", () => {
     const records: CompletionRecord[] = [
-      { scheduledDate: "2026-01-01", dueDate: "2026-01-02", completedAt: "2026-01-02T12:00:00Z" },
+      { scheduledDate: "2026-01-01", dueDate: "2026-01-02", completedAt: "2026-01-02T12:00:00Z", timeInvestedMs: 5000 },
     ];
     const task = makeTask({ id: "t1", completionHistory: records });
 
@@ -61,8 +61,21 @@ describe("migrateTask", () => {
     const migrated = migrateTask(task);
 
     expect(migrated.completionHistory).toEqual([
-      { scheduledDate: null, dueDate: null, completedAt: "2026-01-01T00:00:00Z" },
-      { scheduledDate: "2026-01-05", dueDate: "2026-01-06", completedAt: "2026-01-06T12:00:00Z" },
+      { scheduledDate: null, dueDate: null, completedAt: "2026-01-01T00:00:00Z", timeInvestedMs: 0 },
+      { timeInvestedMs: 0, scheduledDate: "2026-01-05", dueDate: "2026-01-06", completedAt: "2026-01-06T12:00:00Z" },
+    ]);
+  });
+
+  it("defaults missing timeInvestedMs on CompletionRecord to 0", () => {
+    // Simulate a record saved before timeInvestedMs was added
+    const records = [
+      { scheduledDate: "2026-01-01", dueDate: "2026-01-02", completedAt: "2026-01-02T12:00:00Z" },
+    ] as unknown as CompletionRecord[];
+    const task = makeTask({ id: "t1", completionHistory: records });
+
+    const migrated = migrateTask(task);
+    expect(migrated.completionHistory).toEqual([
+      { timeInvestedMs: 0, scheduledDate: "2026-01-01", dueDate: "2026-01-02", completedAt: "2026-01-02T12:00:00Z" },
     ]);
   });
 
@@ -109,7 +122,7 @@ describe("migrateTask", () => {
 
     const migrated = migrateTask(parent);
     expect(migrated.children[0].completionHistory).toEqual([
-      { scheduledDate: null, dueDate: null, completedAt: "2026-01-01T00:00:00Z" },
+      { scheduledDate: null, dueDate: null, completedAt: "2026-01-01T00:00:00Z", timeInvestedMs: 0 },
     ]);
   });
 });

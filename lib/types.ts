@@ -14,6 +14,7 @@ export interface CompletionRecord {
   scheduledDate: string | null;
   dueDate: string | null;
   completedAt: string;
+  timeInvestedMs: number;
 }
 
 export type TagColor =
