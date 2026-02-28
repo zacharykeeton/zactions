@@ -11,6 +11,7 @@ export const TODAY_OPTIONAL_SECTION_KEY = "today-section-optional-open";
 export const TOMORROW_OPTIONAL_SECTION_KEY = "tomorrow-section-optional-open";
 export const COLLAPSED_TASKS_KEY = "collapsed-task-ids";
 export const COMPACT_MODE_KEY = "compact-mode-enabled";
+export const COMPACT_MODE_SETTINGS_KEY = "compact-mode-settings";
 export const TAGS_STORAGE_KEY = "recursive-todo-tags";
 export const LISTS_STORAGE_KEY = "recursive-todo-lists";
 export const ACTIVE_LIST_KEY = "active-list-id";

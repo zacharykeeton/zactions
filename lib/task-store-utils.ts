@@ -9,7 +9,7 @@ export function migrateTask(task: Task): Task {
         if (typeof entry === "string") {
           return { scheduledDate: null, dueDate: null, completedAt: entry, timeInvestedMs: 0 };
         }
-        return { timeInvestedMs: 0, ...entry };
+        return { ...entry, timeInvestedMs: entry.timeInvestedMs ?? 0 };
       }
     );
   }
@@ -53,7 +53,7 @@ export function resetChildrenDeep(items: Task[]): Task[] {
       ? [{
           scheduledDate: item.scheduledDate,
           dueDate: item.dueDate,
-          completedAt: item.completedDate,
+          completedAt: item.completedDate!,
           timeInvestedMs: item.timeInvestedMs,
         }]
       : (item.completionHistory ?? []);

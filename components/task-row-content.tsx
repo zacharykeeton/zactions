@@ -77,7 +77,8 @@ export function TaskRowContent({
   onPauseTimer,
   blockingTaskTitle,
 }: TaskRowContentProps) {
-  const { compactMode } = useCompactMode();
+  const { compactMode, settings } = useCompactMode();
+  const show = (key: keyof typeof settings) => !compactMode || settings[key];
   const checkboxRef = useRef<HTMLButtonElement>(null);
 
   const isBlocked = !task.completed && !!blockingTaskTitle;
@@ -174,7 +175,7 @@ export function TaskRowContent({
       </span>
 
       <div className="flex shrink-0 items-center gap-1.5">
-        {!compactMode && isLocked && (
+        {show("showStatus") && isLocked && (
           <Badge
             variant="outline"
             className="text-xs border-orange-400 text-orange-600 dark:border-orange-500 dark:text-orange-400"
@@ -183,7 +184,7 @@ export function TaskRowContent({
           </Badge>
         )}
 
-        {!compactMode && tagMap && task.tags?.map((tagId) => {
+        {show("showTags") && tagMap && task.tags?.map((tagId) => {
           const tag = tagMap[tagId];
           if (!tag) return null;
           const colorStyle = TAG_COLORS[tag.color];
@@ -198,7 +199,7 @@ export function TaskRowContent({
           );
         })}
 
-        {!compactMode && task.recurrence && (
+        {show("showRecurrence") && task.recurrence && (
           <Badge
             variant="outline"
             className="flex items-center gap-1 text-xs"
@@ -209,7 +210,7 @@ export function TaskRowContent({
           </Badge>
         )}
 
-        {!compactMode && (task.completionHistory?.length ?? 0) > 0 && (
+        {show("showCompletionCount") && (task.completionHistory?.length ?? 0) > 0 && (
           <span
             className="text-xs text-muted-foreground"
             title={`Completed ${task.completionHistory!.length} time${task.completionHistory!.length === 1 ? "" : "s"}`}
@@ -218,7 +219,7 @@ export function TaskRowContent({
           </span>
         )}
 
-        {!compactMode && (
+        {show("showPriority") && (
           <Badge
             variant="secondary"
             className={cn("text-xs", priorityColors[task.priority])}
@@ -227,14 +228,14 @@ export function TaskRowContent({
           </Badge>
         )}
 
-        {!compactMode && (
+        {show("showCreatedDate") && (
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             <ClipboardPlus className="h-3 w-3" />
             {format(new Date(task.createdDate), "MMM d")}
           </span>
         )}
 
-        {!compactMode && task.startDate && (
+        {show("showStartDate") && task.startDate && (
           <span
             className={cn(
               "flex items-center gap-1 text-xs text-muted-foreground",
@@ -246,14 +247,14 @@ export function TaskRowContent({
           </span>
         )}
 
-        {!compactMode && task.scheduledDate && (
+        {show("showScheduledDate") && task.scheduledDate && (
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" />
             {format(parseISO(task.scheduledDate), "MMM d")}
           </span>
         )}
 
-        {!compactMode && task.dueDate && (
+        {show("showDueDate") && task.dueDate && (
           <span
             className={cn(
               "flex items-center gap-1 text-xs text-muted-foreground",
@@ -265,7 +266,7 @@ export function TaskRowContent({
           </span>
         )}
 
-        {!compactMode && task.completed && task.completedDate && (
+        {show("showCompletedDate") && task.completed && task.completedDate && (
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             <CheckCheck className="h-3 w-3" />
             {format(parseISO(task.completedDate), "MMM d")}
@@ -275,7 +276,7 @@ export function TaskRowContent({
         {task.timeEstimateMs && !displayTimeMs && !isTimerActive ? (
           <span className={cn(
             "flex items-center gap-1 text-xs text-muted-foreground",
-            compactMode && "opacity-0 group-hover:opacity-100 transition-opacity"
+            compactMode && !settings.showTimeEstimate && "opacity-0 group-hover:opacity-100 transition-opacity"
           )}>
             <Hourglass className="h-3 w-3" />
             Est {formatEstimate(task.timeEstimateMs)}
@@ -289,13 +290,13 @@ export function TaskRowContent({
                 : displayTimeMs > task.timeEstimateMs
                   ? "text-red-600 dark:text-red-400"
                   : "text-green-600 dark:text-green-400",
-              compactMode && !isTimerActive && "opacity-0 group-hover:opacity-100 transition-opacity"
+              compactMode && !settings.showTimeEstimate && !isTimerActive && "opacity-0 group-hover:opacity-100 transition-opacity"
             )}
           >
             <Hourglass className="h-3 w-3" />
             {formatEstimate(displayTimeMs)} / {formatEstimate(task.timeEstimateMs)}
           </span>
-        ) : !compactMode && (displayTimeMs > 0 || isTimerActive) ? (
+        ) : show("showTimeEstimate") && (displayTimeMs > 0 || isTimerActive) ? (
           <span
             className={cn(
               "font-mono text-xs tabular-nums",

@@ -68,6 +68,20 @@ export interface FlattenedTask extends Task {
   index: number;
 }
 
+export interface CompactModeSettings {
+  showPriority: boolean;
+  showTags: boolean;
+  showDueDate: boolean;
+  showScheduledDate: boolean;
+  showStartDate: boolean;
+  showCreatedDate: boolean;
+  showCompletedDate: boolean;
+  showRecurrence: boolean;
+  showCompletionCount: boolean;
+  showTimeEstimate: boolean;
+  showStatus: boolean;
+}
+
 export interface BackupPreferences {
   activeListId?: string;
   todaySortOrder?: string[];
@@ -80,6 +94,7 @@ export interface BackupPreferences {
   todayOptionalSectionOpen?: boolean;
   tomorrowOptionalSectionOpen?: boolean;
   compactMode?: boolean;
+  compactModeSettings?: CompactModeSettings;
 }
 
 export interface BackupData {

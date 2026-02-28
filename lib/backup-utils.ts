@@ -7,6 +7,7 @@ import {
   TOMORROW_SORT_ORDER_KEY,
   COLLAPSED_TASKS_KEY,
   COMPACT_MODE_KEY,
+  COMPACT_MODE_SETTINGS_KEY,
   TODAY_RECURRING_SECTION_KEY,
   TODAY_NON_RECURRING_SECTION_KEY,
   TOMORROW_RECURRING_SECTION_KEY,
@@ -85,6 +86,15 @@ export function gatherPreferences(): BackupPreferences {
     prefs.compactMode = compactMode === "true";
   }
 
+  const compactModeSettings = localStorage.getItem(COMPACT_MODE_SETTINGS_KEY);
+  if (compactModeSettings) {
+    try {
+      prefs.compactModeSettings = JSON.parse(compactModeSettings);
+    } catch {
+      /* ignore corrupt */
+    }
+  }
+
   return prefs;
 }
 
@@ -119,6 +129,10 @@ export function restorePreferences(preferences: BackupPreferences): void {
 
   if (preferences.compactMode !== undefined) {
     localStorage.setItem(COMPACT_MODE_KEY, String(preferences.compactMode));
+  }
+
+  if (preferences.compactModeSettings !== undefined) {
+    localStorage.setItem(COMPACT_MODE_SETTINGS_KEY, JSON.stringify(preferences.compactModeSettings));
   }
 }
 

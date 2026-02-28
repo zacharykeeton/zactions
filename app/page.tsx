@@ -36,6 +36,7 @@ import { ArchivedList } from "@/components/archived-list";
 import { TaskForm } from "@/components/task-form";
 import { TagManager } from "@/components/tag-manager";
 import { ModeToggle } from "@/components/mode-toggle";
+import { CompactModeSettings } from "@/components/compact-mode-settings";
 import { AppSidebar, type ActiveListFilter } from "@/components/app-sidebar";
 import {
   Dialog,
@@ -538,6 +539,7 @@ export default function Home() {
                   </Button>
                 )}
                 <CompactModeToggle />
+                <CompactModeSettings />
                 <ModeToggle />
               </div>
             </header>
