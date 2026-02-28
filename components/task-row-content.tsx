@@ -4,7 +4,6 @@ import { useCallback, useRef } from "react";
 import { format, isFuture, isPast, isToday, parseISO } from "date-fns";
 import {
   Plus,
-  Pencil,
   Copy,
   Trash2,
   Calendar,
@@ -165,14 +164,15 @@ export function TaskRowContent({
         />
       )}
 
-      <span
+      <button
         className={cn(
-          "min-w-0 flex-1 truncate text-sm",
+          "min-w-0 flex-1 truncate text-sm text-left hover:underline cursor-pointer",
           task.completed && "line-through text-muted-foreground"
         )}
+        onClick={() => onEdit(task)}
       >
         {task.title}
-      </span>
+      </button>
 
       <div className="flex shrink-0 items-center gap-1.5">
         {show("showStatus") && isLocked && (
@@ -385,15 +385,6 @@ export function TaskRowContent({
               <CalendarArrowDown className="h-3.5 w-3.5" />
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => onEdit(task)}
-            title="Edit task"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
           {onDuplicate && (
             <Button
               variant="ghost"
