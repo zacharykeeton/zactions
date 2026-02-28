@@ -7,7 +7,7 @@ import { removeItem, findItemDeep } from "@/lib/tree-utils";
 import { isTaskBlocked } from "@/lib/dependency-utils";
 import { getNextDueDate, fastForwardDueDate } from "@/lib/recurrence-utils";
 import { LOCAL_STORAGE_KEY } from "@/lib/constants";
-import { migrateTask, removeDependencyRef, setArchivedOnTask } from "@/lib/task-store-utils";
+import { migrateTask, removeDependencyRef, resetChildrenDeep, setArchivedOnTask } from "@/lib/task-store-utils";
 
 export function useTaskStore() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -48,8 +48,8 @@ export function useTaskStore() {
       dependsOn?: string[],
       timeEstimateMs?: number | null
     ) => {
-      // Recurring tasks must have a due date and cannot be subtasks
-      if (recurrence && (!dueDate || parentId !== null)) {
+      // Recurring tasks must have a due date
+      if (recurrence && !dueDate) {
         recurrence = undefined;
       }
 
@@ -148,6 +148,7 @@ export function useTaskStore() {
                 dueDate: nextDue,
                 completedDate: null,
                 timeInvestedMs: 0,
+                children: resetChildrenDeep(item.children),
                 completionHistory: [...(item.completionHistory || []), {
                   scheduledDate: item.scheduledDate,
                   dueDate: item.dueDate!,
@@ -164,13 +165,28 @@ export function useTaskStore() {
       }
 
       // Normal toggle
+      const now = new Date().toISOString();
       const update = (items: Task[]): Task[] =>
         items.map((item) => {
           if (item.id === id) {
+            // Record completion immediately if this task tracks history
+            // (i.e. it's a subtask of a recurring parent that has been
+            // through at least one cycle, so completionHistory is initialised).
+            const newHistory =
+              newCompleted && Array.isArray(item.completionHistory)
+                ? [...item.completionHistory, {
+                    scheduledDate: item.scheduledDate,
+                    dueDate: item.dueDate,
+                    completedAt: now,
+                    timeInvestedMs: item.timeInvestedMs,
+                  } as CompletionRecord]
+                : item.completionHistory;
+
             return {
               ...item,
               completed: newCompleted,
-              completedDate: newCompleted ? new Date().toISOString() : null,
+              completedDate: newCompleted ? now : null,
+              completionHistory: newHistory,
             };
           }
           if (item.children.length > 0)
@@ -241,6 +257,7 @@ export function useTaskStore() {
             return {
               ...item,
               dueDate: nextDue,
+              children: resetChildrenDeep(item.children),
             };
           }
           if (item.children.length > 0)

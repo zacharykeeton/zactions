@@ -12,13 +12,14 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 import type { Task, Tag, FlattenedTask } from "@/lib/types";
 import {
   flattenTree,
   buildTree,
   getProjection,
-  findItemDeep,
   hasAnyDateInTree,
+  findItemDeep,
 } from "@/lib/tree-utils";
 import { INDENTATION_WIDTH, COLLAPSED_TASKS_KEY } from "@/lib/constants";
 import { isSidebarDroppableId } from "@/lib/dnd-utils";
@@ -92,6 +93,7 @@ interface TaskTreeProps {
   onAddSubtask: (parentId: string) => void;
   onArchive?: (id: string) => void;
   onFastForward?: (id: string) => void;
+  onRestoreTasks?: (snapshot: Task[]) => void;
   activeTimerId: string | null;
   currentElapsedMs: number;
   onStartTimer: (taskId: string) => void;
@@ -113,6 +115,7 @@ export function TaskTree({
   onAddSubtask,
   onArchive,
   onFastForward,
+  onRestoreTasks,
   activeTimerId,
   currentElapsedMs,
   onStartTimer,
@@ -241,12 +244,6 @@ export function TaskTree({
 
       const { depth, parentId } = projected;
 
-      // Prevent nesting under a recurring task
-      if (parentId) {
-        const parent = findItemDeep(tasks, parentId);
-        if (parent?.recurrence) return;
-      }
-
       const dragGroupTasks =
         dragSection === "recurring" ? recurringTasks
         : dragSection === "scheduled" ? scheduledTasks
@@ -265,6 +262,19 @@ export function TaskTree({
         parentId,
       };
 
+      // If a recurring task is being nested under a parent, strip its recurrence
+      const activeTask = findItemDeep(allTasks, String(active.id));
+      const willStripRecurrence = activeTask?.recurrence && parentId !== null;
+      const snapshot = willStripRecurrence ? allTasks : null;
+
+      if (willStripRecurrence) {
+        clonedItems[activeIndex] = {
+          ...clonedItems[activeIndex],
+          recurrence: undefined,
+          completionHistory: undefined,
+        };
+      }
+
       const sortedItems = arrayMove(clonedItems, activeIndex, overIndex);
       const newGroupTree = buildTree(sortedItems);
 
@@ -276,6 +286,17 @@ export function TaskTree({
             : [...recurringTasks, ...scheduledTasks, ...newGroupTree];
 
       onReorder(newTree);
+
+      if (willStripRecurrence && snapshot && onRestoreTasks) {
+        toast.dismiss();
+        toast(`Recurrence removed from "${activeTask.title}"`, {
+          action: {
+            label: "Undo",
+            onClick: () => onRestoreTasks(snapshot),
+          },
+          duration: 5000,
+        });
+      }
     },
   });
 

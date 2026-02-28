@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { migrateTask, removeDependencyRef, setArchivedDeep, setArchivedOnTask } from "./task-store-utils";
+import { migrateTask, removeDependencyRef, resetChildrenDeep, setArchivedDeep, setArchivedOnTask } from "./task-store-utils";
 import type { Task, CompletionRecord } from "./types";
 
 /** Minimal task factory for testing. */
@@ -174,6 +174,194 @@ describe("removeDependencyRef", () => {
     expect(result[0].dependsOn).toEqual(["z"]);
     expect(result[0].children[0].dependsOn).toBeUndefined();
     expect(result[0].children[0].children[0].dependsOn).toEqual(["y"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resetChildrenDeep
+// ---------------------------------------------------------------------------
+
+describe("resetChildrenDeep", () => {
+  it("resets completed, completedDate, and timeInvestedMs on a flat list", () => {
+    const items = [
+      makeTask({ id: "a", completed: true, completedDate: "2026-01-05", timeInvestedMs: 5000, completionHistory: [] }),
+      makeTask({ id: "b", completed: true, completedDate: "2026-01-06", timeInvestedMs: 3000, completionHistory: [] }),
+    ];
+
+    const result = resetChildrenDeep(items);
+    for (const item of result) {
+      expect(item.completed).toBe(false);
+      expect(item.completedDate).toBeNull();
+      expect(item.timeInvestedMs).toBe(0);
+    }
+  });
+
+  it("resets nested children recursively", () => {
+    const grandchild = makeTask({ id: "gc", completed: true, completedDate: "2026-01-05", timeInvestedMs: 1000, completionHistory: [] });
+    const child = makeTask({ id: "c", completed: true, completedDate: "2026-01-05", timeInvestedMs: 2000, completionHistory: [], children: [grandchild] });
+    const items = [child];
+
+    const result = resetChildrenDeep(items);
+    expect(result[0].completed).toBe(false);
+    expect(result[0].completedDate).toBeNull();
+    expect(result[0].timeInvestedMs).toBe(0);
+    expect(result[0].children[0].completed).toBe(false);
+    expect(result[0].children[0].completedDate).toBeNull();
+    expect(result[0].children[0].timeInvestedMs).toBe(0);
+  });
+
+  it("handles already-reset items (no-op)", () => {
+    const items = [makeTask({ id: "a" })];
+
+    const result = resetChildrenDeep(items);
+    expect(result[0].completed).toBe(false);
+    expect(result[0].completedDate).toBeNull();
+    expect(result[0].timeInvestedMs).toBe(0);
+  });
+
+  it("returns empty array for empty input", () => {
+    expect(resetChildrenDeep([])).toEqual([]);
+  });
+
+  it("first-cycle fallback: records completed children that lack completionHistory", () => {
+    const items = [
+      makeTask({
+        id: "a",
+        completed: true,
+        completedDate: "2026-01-05T12:00:00Z",
+        scheduledDate: "2026-01-04",
+        dueDate: "2026-01-05",
+        timeInvestedMs: 5000,
+        // no completionHistory — first cycle
+      }),
+    ];
+
+    const result = resetChildrenDeep(items);
+    expect(result[0].completed).toBe(false);
+    expect(result[0].completedDate).toBeNull();
+    expect(result[0].timeInvestedMs).toBe(0);
+    expect(result[0].completionHistory).toEqual([
+      {
+        scheduledDate: "2026-01-04",
+        dueDate: "2026-01-05",
+        completedAt: "2026-01-05T12:00:00Z",
+        timeInvestedMs: 5000,
+      },
+    ]);
+  });
+
+  it("does not duplicate record for children that already have completionHistory", () => {
+    const existingRecord = {
+      scheduledDate: "2026-01-03",
+      dueDate: "2026-01-04",
+      completedAt: "2026-01-04T10:00:00Z",
+      timeInvestedMs: 2000,
+    };
+    const items = [
+      makeTask({
+        id: "a",
+        completed: true,
+        completedDate: "2026-01-05T12:00:00Z",
+        timeInvestedMs: 5000,
+        completionHistory: [existingRecord],
+      }),
+    ];
+
+    const result = resetChildrenDeep(items);
+    // Already had completionHistory, so no fallback record — toggle recorded it
+    expect(result[0].completionHistory).toEqual([existingRecord]);
+  });
+
+  it("initialises completionHistory to [] for incomplete children without it", () => {
+    const items = [
+      makeTask({ id: "a", completed: false, completedDate: null }),
+    ];
+
+    const result = resetChildrenDeep(items);
+    expect(result[0].completionHistory).toEqual([]);
+  });
+
+  it("first-cycle fallback works recursively on nested children", () => {
+    const grandchild = makeTask({
+      id: "gc",
+      completed: true,
+      completedDate: "2026-01-05T14:00:00Z",
+      dueDate: "2026-01-05",
+      scheduledDate: null,
+      timeInvestedMs: 2000,
+    });
+    const child = makeTask({
+      id: "c",
+      completed: true,
+      completedDate: "2026-01-05T13:00:00Z",
+      dueDate: "2026-01-05",
+      scheduledDate: "2026-01-04",
+      timeInvestedMs: 3000,
+      children: [grandchild],
+    });
+
+    const result = resetChildrenDeep([child]);
+    expect(result[0].completionHistory).toEqual([
+      {
+        scheduledDate: "2026-01-04",
+        dueDate: "2026-01-05",
+        completedAt: "2026-01-05T13:00:00Z",
+        timeInvestedMs: 3000,
+      },
+    ]);
+    expect(result[0].children[0].completionHistory).toEqual([
+      {
+        scheduledDate: null,
+        dueDate: "2026-01-05",
+        completedAt: "2026-01-05T14:00:00Z",
+        timeInvestedMs: 2000,
+      },
+    ]);
+  });
+
+  it("preserves existing completionHistory through reset", () => {
+    const priorRecord = {
+      scheduledDate: "2026-01-01",
+      dueDate: "2026-01-02",
+      completedAt: "2026-01-02T12:00:00Z",
+      timeInvestedMs: 1000,
+    };
+    const items = [
+      makeTask({
+        id: "a",
+        completed: false,
+        completedDate: null,
+        completionHistory: [priorRecord],
+      }),
+    ];
+
+    const result = resetChildrenDeep(items);
+    expect(result[0].completionHistory).toEqual([priorRecord]);
+  });
+
+  it("preserves other properties", () => {
+    const items = [
+      makeTask({
+        id: "a",
+        title: "Exercise",
+        priority: "high",
+        dueDate: "2026-02-01",
+        tags: ["tag1"],
+        completed: true,
+        completedDate: "2026-01-30",
+        timeInvestedMs: 9000,
+      }),
+    ];
+
+    const result = resetChildrenDeep(items);
+    expect(result[0].title).toBe("Exercise");
+    expect(result[0].priority).toBe("high");
+    expect(result[0].dueDate).toBe("2026-02-01");
+    expect(result[0].tags).toEqual(["tag1"]);
+    // Reset fields
+    expect(result[0].completed).toBe(false);
+    expect(result[0].completedDate).toBeNull();
+    expect(result[0].timeInvestedMs).toBe(0);
   });
 });
 

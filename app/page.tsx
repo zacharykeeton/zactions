@@ -604,6 +604,7 @@ export default function Home() {
                       onAddSubtask={handleAddSubtask}
                       onArchive={handleArchiveWithTimer}
                       onFastForward={fastForwardTask}
+                      onRestoreTasks={restoreTasks}
                       activeTimerId={activeTimerId}
                       currentElapsedMs={currentElapsedMs}
                       onStartTimer={startTimer}
@@ -624,6 +625,7 @@ export default function Home() {
                     onDelete={handleDeleteWithTimer}
                     onEdit={handleEdit}
                     onDuplicate={handleDuplicate}
+                    onAddSubtask={handleAddSubtask}
                     onArchive={handleArchiveWithTimer}
                     onFastForward={fastForwardTask}
                     onSkipToday={skipTodayTask}
@@ -650,6 +652,7 @@ export default function Home() {
                     onDelete={handleDeleteWithTimer}
                     onEdit={handleEdit}
                     onDuplicate={handleDuplicate}
+                    onAddSubtask={handleAddSubtask}
                     onArchive={handleArchiveWithTimer}
                     onFastForward={fastForwardTask}
                     activeTimerId={activeTimerId}

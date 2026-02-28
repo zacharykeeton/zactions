@@ -22,6 +22,7 @@ interface TaskItemProps {
   onAddSubtask: (parentId: string) => void;
   onArchive?: (id: string) => void;
   onFastForward?: (id: string) => void;
+  onSkipToday?: (id: string) => void;
   isGhost?: boolean;
   isTimerActive: boolean;
   displayTimeMs: number;
@@ -45,6 +46,7 @@ export function TaskItem({
   onAddSubtask,
   onArchive,
   onFastForward,
+  onSkipToday,
   isTimerActive,
   displayTimeMs,
   onStartTimer,
@@ -152,6 +154,7 @@ export function TaskItem({
         onAddSubtask={onAddSubtask}
         onArchive={onArchive}
         onFastForward={onFastForward}
+        onSkipToday={onSkipToday}
         tagMap={tagMap}
         isTimerActive={isTimerActive}
         displayTimeMs={displayTimeMs}

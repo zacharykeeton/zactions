@@ -153,14 +153,71 @@ export function getDragDepthIds(
   return ids;
 }
 
-export function getTasksForToday(tasks: Task[], today: Date): Task[] {
+/** Collect all IDs in a task subtree (the task itself + all descendants). */
+export function collectAllTaskIds(task: Task): Set<string> {
+  const ids = new Set<string>();
+  function walk(t: Task) {
+    ids.add(t.id);
+    for (const child of t.children) walk(child);
+  }
+  walk(task);
+  return ids;
+}
+
+function isTaskQualifiedForDate(task: Task, todayStr: string, today: Date): boolean {
+  if (task.archived) return false;
+  if (task.startDate && task.startDate > todayStr) return false;
+  if (task.completed && task.completedDate && isBefore(parseISO(task.completedDate), today)) return false;
+  const isDueToday = task.dueDate && isSameDay(parseISO(task.dueDate), today);
+  const isScheduledToday = task.scheduledDate && isSameDay(parseISO(task.scheduledDate), today);
+  const isPastDue = task.dueDate && !task.completed && isBefore(parseISO(task.dueDate), today);
+  const isPastScheduled = task.scheduledDate && !task.completed && isBefore(parseISO(task.scheduledDate), today);
+  return !!(isDueToday || isScheduledToday || isPastDue || isPastScheduled);
+}
+
+/**
+ * Find recurring tasks that qualify for today and return them with children intact.
+ * Also returns a Set of all IDs (parent + descendants) so they can be excluded from other sections.
+ */
+export function getRecurringTasksForTodayWithChildren(
+  tasks: Task[],
+  today: Date
+): { recurringTasks: Task[]; excludeIds: Set<string> } {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+
   const results: Task[] = [];
-  // Build a YYYY-MM-DD string for today for startDate comparison
+  const excludeIds = new Set<string>();
+
+  function collect(items: Task[]) {
+    for (const task of items) {
+      if (task.archived) {
+        collect(task.children);
+        continue;
+      }
+      if (task.recurrence && isTaskQualifiedForDate(task, todayStr, today)) {
+        // Include this recurring task with its full children tree
+        results.push(task);
+        const ids = collectAllTaskIds(task);
+        for (const id of ids) excludeIds.add(id);
+      } else {
+        // Not a qualifying recurring task — check children
+        collect(task.children);
+      }
+    }
+  }
+  collect(tasks);
+  return { recurringTasks: results, excludeIds };
+}
+
+export function getTasksForToday(tasks: Task[], today: Date, excludeIds?: Set<string>): Task[] {
+  const results: Task[] = [];
   const pad = (n: number) => String(n).padStart(2, "0");
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
 
   function collect(items: Task[]) {
     for (const task of items) {
+      if (excludeIds?.has(task.id)) continue;
       if (task.archived) continue;
       // Exclude tasks with a future start date
       if (task.startDate && task.startDate > todayStr) {
@@ -191,13 +248,14 @@ export function getTasksForToday(tasks: Task[], today: Date): Task[] {
  * due/scheduled today and NOT overdue — they're "optional" tasks the user
  * could work on.
  */
-export function getOptionalTasksForToday(tasks: Task[], today: Date): Task[] {
+export function getOptionalTasksForToday(tasks: Task[], today: Date, excludeIds?: Set<string>): Task[] {
   const results: Task[] = [];
   const pad = (n: number) => String(n).padStart(2, "0");
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
 
   function collect(items: Task[]) {
     for (const task of items) {
+      if (excludeIds?.has(task.id)) continue;
       if (task.archived) {
         continue;
       }

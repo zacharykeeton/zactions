@@ -37,6 +37,38 @@ export function removeDependencyRef(items: Task[], depId: string): Task[] {
   });
 }
 
+/** Recursively reset children to incomplete for recurring-task cycle resets.
+ *  - Completed children that lack completionHistory (first cycle) get a
+ *    fallback CompletionRecord so no data is lost.
+ *  - All children get completionHistory initialised to [] (if absent) so
+ *    future completions can be recorded at toggle time.
+ */
+export function resetChildrenDeep(items: Task[]): Task[] {
+  return items.map((item) => {
+    // First-cycle fallback: child was completed but didn't have
+    // completionHistory initialised yet, so the toggle couldn't record it.
+    const needsFallback =
+      item.completed && item.completedDate && !item.completionHistory;
+    const newHistory = needsFallback
+      ? [{
+          scheduledDate: item.scheduledDate,
+          dueDate: item.dueDate,
+          completedAt: item.completedDate,
+          timeInvestedMs: item.timeInvestedMs,
+        }]
+      : (item.completionHistory ?? []);
+
+    return {
+      ...item,
+      completed: false,
+      completedDate: null,
+      timeInvestedMs: 0,
+      completionHistory: newHistory,
+      children: resetChildrenDeep(item.children),
+    };
+  });
+}
+
 /** Recursively set the archived flag on all items and their children. */
 export function setArchivedDeep(items: Task[], archived: boolean): Task[] {
   return items.map((item) => ({

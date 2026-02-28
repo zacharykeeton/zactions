@@ -9,8 +9,14 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
-import type { Task, Tag } from "@/lib/types";
-import { getTasksForToday, getOptionalTasksForToday, getTodayProgress } from "@/lib/tree-utils";
+import type { Task, Tag, FlattenedTask } from "@/lib/types";
+import {
+  getTasksForToday,
+  getOptionalTasksForToday,
+  getRecurringTasksForTodayWithChildren,
+  getTodayProgress,
+  flattenTree,
+} from "@/lib/tree-utils";
 import { sortTodayTasks } from "@/lib/today-sort-utils";
 import { useTodaySortOrder } from "@/hooks/use-today-sort-order";
 import {
@@ -18,12 +24,34 @@ import {
   TODAY_RECURRING_SECTION_KEY,
   TODAY_NON_RECURRING_SECTION_KEY,
   TODAY_OPTIONAL_SECTION_KEY,
+  INDENTATION_WIDTH,
+  COLLAPSED_TASKS_KEY,
 } from "@/lib/constants";
 import { isSidebarDroppableId } from "@/lib/dnd-utils";
 import { formatEstimate } from "@/lib/time-utils";
 import { getBlockingTask } from "@/lib/dependency-utils";
 import { Progress } from "@/components/ui/progress";
 import { TodayTaskItem } from "@/components/today-task-item";
+import { TaskItem } from "@/components/task-item";
+
+/** Remove descendants of collapsed tasks from a flattened list. */
+function filterCollapsed(items: FlattenedTask[], collapsedIds: Set<string>): FlattenedTask[] {
+  const result: FlattenedTask[] = [];
+  let skipDepth: number | null = null;
+
+  for (const item of items) {
+    if (skipDepth !== null) {
+      if (item.depth > skipDepth) continue;
+      skipDepth = null;
+    }
+    result.push(item);
+    if (collapsedIds.has(item.id) && item.children.length > 0) {
+      skipDepth = item.depth;
+    }
+  }
+
+  return result;
+}
 
 function readSectionState(key: string): boolean {
   if (typeof window === "undefined") return true;
@@ -75,6 +103,7 @@ interface TodayListProps {
   onArchive?: (id: string) => void;
   onFastForward?: (id: string) => void;
   onSkipToday?: (id: string) => void;
+  onAddSubtask?: (parentId: string) => void;
   activeTimerId: string | null;
   currentElapsedMs: number;
   onStartTimer: (taskId: string) => void;
@@ -99,6 +128,7 @@ export function TodayList({
   onArchive,
   onFastForward,
   onSkipToday,
+  onAddSubtask,
   activeTimerId,
   currentElapsedMs,
   onStartTimer,
@@ -109,7 +139,58 @@ export function TodayList({
 
   const targetDate = useMemo(() => date ?? startOfDay(new Date()), [date]);
 
-  const allTodayTasks = useMemo(() => getTasksForToday(tasks, targetDate), [tasks, targetDate]);
+  // --- Recurring tasks with children intact ---
+  const { recurringTasks: recurringWithChildren, excludeIds } = useMemo(
+    () => getRecurringTasksForTodayWithChildren(tasks, targetDate),
+    [tasks, targetDate]
+  );
+  const filteredRecurringWithChildren = useMemo(
+    () => (listFilter ? recurringWithChildren.filter((t) => listFilter([t]).length > 0) : recurringWithChildren),
+    [recurringWithChildren, listFilter]
+  );
+
+  // Collapse state for recurring tree items (shared with All Tasks tab)
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const stored = localStorage.getItem(COLLAPSED_TASKS_KEY);
+      return stored ? new Set(JSON.parse(stored) as string[]) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  function toggleCollapsed(id: string) {
+    setCollapsedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      localStorage.setItem(COLLAPSED_TASKS_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }
+
+  const fullFlattenedRecurring = useMemo(
+    () => flattenTree(filteredRecurringWithChildren),
+    [filteredRecurringWithChildren]
+  );
+  const flattenedRecurring = useMemo(
+    () => filterCollapsed(fullFlattenedRecurring, collapsedIds),
+    [fullFlattenedRecurring, collapsedIds]
+  );
+  const recurringIds = useMemo(
+    () => flattenedRecurring.map((t) => t.id),
+    [flattenedRecurring]
+  );
+
+  // --- Non-recurring (scheduled) tasks — exclude recurring children ---
+  const allTodayTasks = useMemo(
+    () => getTasksForToday(tasks, targetDate, excludeIds),
+    [tasks, targetDate, excludeIds]
+  );
   const todayTasks = useMemo(
     () => (listFilter ? listFilter(allTodayTasks) : allTodayTasks),
     [allTodayTasks, listFilter]
@@ -129,25 +210,24 @@ export function TodayList({
     }
   }, [todayTasks, sortOrder, cleanupStaleIds]);
 
+  // Progress includes both flattened recurring items and non-recurring items
+  const allProgressTasks = useMemo(
+    () => [...fullFlattenedRecurring, ...sortedTodayTasks],
+    [fullFlattenedRecurring, sortedTodayTasks]
+  );
   const { completedCount, totalCount, percentage: completionPercent } = useMemo(
-    () => getTodayProgress(sortedTodayTasks, targetDate),
-    [sortedTodayTasks, targetDate]
+    () => getTodayProgress(allProgressTasks, targetDate),
+    [allProgressTasks, targetDate]
   );
 
-  const recurringTasks = useMemo(
-    () => sortedTodayTasks.filter((t) => !!t.recurrence),
-    [sortedTodayTasks]
-  );
-  const nonRecurringTasks = useMemo(
-    () => sortedTodayTasks.filter((t) => !t.recurrence),
-    [sortedTodayTasks]
-  );
-
-  const recurringIds = useMemo(() => recurringTasks.map((t) => t.id), [recurringTasks]);
+  const nonRecurringTasks = sortedTodayTasks;
   const nonRecurringIds = useMemo(() => nonRecurringTasks.map((t) => t.id), [nonRecurringTasks]);
 
   // Optional tasks: available (startDate <= today) but not due/scheduled today
-  const allOptionalTasks = useMemo(() => getOptionalTasksForToday(tasks, targetDate), [tasks, targetDate]);
+  const allOptionalTasks = useMemo(
+    () => getOptionalTasksForToday(tasks, targetDate, excludeIds),
+    [tasks, targetDate, excludeIds]
+  );
   const optionalTasks = useMemo(
     () => (listFilter ? listFilter(allOptionalTasks) : allOptionalTasks),
     [allOptionalTasks, listFilter]
@@ -179,8 +259,8 @@ export function TodayList({
   }, [sortedTodayTasks, sortedOptionalTasks, activeTimerId, currentElapsedMs]);
 
   const sortedIds = useMemo(
-    () => [...sortedTodayTasks, ...sortedOptionalTasks].map(({ id }) => id),
-    [sortedTodayTasks, sortedOptionalTasks]
+    () => [...recurringIds, ...nonRecurringIds, ...optionalIds],
+    [recurringIds, nonRecurringIds, optionalIds]
   );
 
   const [recurringOpen, setRecurringOpen] = useState(() => readSectionState(recurringSectionKey));
@@ -239,7 +319,7 @@ export function TodayList({
     },
   });
 
-  if (todayTasks.length === 0 && optionalTasks.length === 0) {
+  if (todayTasks.length === 0 && filteredRecurringWithChildren.length === 0 && optionalTasks.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed py-16">
         <CalendarCheck className="h-12 w-12 text-muted-foreground" />
@@ -250,6 +330,39 @@ export function TodayList({
           </p>
         </div>
       </div>
+    );
+  }
+
+  function renderRecurringTaskItem(task: FlattenedTask) {
+    const blockingTask = getBlockingTask(tasks, task);
+    return (
+      <TaskItem
+        key={task.id}
+        task={task}
+        depth={task.depth}
+        indentationWidth={INDENTATION_WIDTH}
+        onToggle={onToggle}
+        onDelete={onDelete}
+        onEdit={onEdit}
+        onDuplicate={onDuplicate}
+        onAddSubtask={onAddSubtask ?? (() => {})}
+        onArchive={onArchive}
+        onFastForward={onFastForward}
+        onSkipToday={task.depth === 0 ? onSkipToday : undefined}
+        isTimerActive={task.id === activeTimerId}
+        displayTimeMs={
+          task.id === activeTimerId
+            ? task.timeInvestedMs + currentElapsedMs
+            : task.timeInvestedMs
+        }
+        onStartTimer={onStartTimer}
+        onPauseTimer={onPauseTimer}
+        hasChildren={task.children.length > 0}
+        isCollapsed={collapsedIds.has(task.id)}
+        onToggleCollapse={toggleCollapsed}
+        tagMap={tagMap}
+        blockingTaskTitle={blockingTask?.title}
+      />
     );
   }
 
@@ -318,15 +431,15 @@ export function TodayList({
         title="Recurring"
         open={recurringOpen}
         onToggle={toggleRecurring}
-        count={recurringTasks.length}
+        count={filteredRecurringWithChildren.length}
       >
         <SortableContext items={recurringIds} strategy={verticalListSortingStrategy}>
-          {recurringTasks.map(renderTaskItem)}
+          {flattenedRecurring.map(renderRecurringTaskItem)}
         </SortableContext>
       </CollapsibleSection>
 
       <CollapsibleSection
-        title="Non-Recurring"
+        title="Scheduled"
         open={nonRecurringOpen}
         onToggle={toggleNonRecurring}
         count={nonRecurringTasks.length}

@@ -359,7 +359,7 @@ export function TaskRowContent({
               <SkipForward className="h-3.5 w-3.5" />
             </Button>
           )}
-          {onAddSubtask && !task.recurrence && (
+          {onAddSubtask && (
             <Button
               variant="ghost"
               size="icon"
