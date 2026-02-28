@@ -500,6 +500,44 @@ export function TaskForm({
                       </Button>
                     ))}
                   </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setSelectedDays([1, 2, 3, 4, 5] as DayOfWeek[])}
+                    >
+                      Weekdays
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setSelectedDays([0, 6] as DayOfWeek[])}
+                    >
+                      Weekends
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setSelectedDays([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[])}
+                    >
+                      Every day
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs text-muted-foreground"
+                      onClick={() => setSelectedDays([])}
+                    >
+                      Clear
+                    </Button>
+                  </div>
                 </div>
               )}
 

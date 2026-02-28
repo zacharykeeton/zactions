@@ -394,6 +394,53 @@ describe('frequency > 1 recurrence', () => {
   });
 });
 
+describe('weekday-only recurrence (daysOfWeek: [1,2,3,4,5])', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-02-16T00:00:00.000Z'));
+  });
+
+  const weekdayPattern: RecurrencePattern = {
+    interval: 'weekly',
+    daysOfWeek: [1, 2, 3, 4, 5],
+  };
+
+  describe('getNextDueDate', () => {
+    it('Friday → next Monday (skips weekend)', () => {
+      const dueDate = '2026-02-13T00:00:00.000Z'; // Fri Feb 13
+      const result = getNextDueDate(dueDate, weekdayPattern);
+      expect(result).toBe('2026-02-16'); // Mon Feb 16
+    });
+
+    it('Wednesday → Thursday (same-week advance)', () => {
+      const dueDate = '2026-02-18T00:00:00.000Z'; // Wed Feb 18 (future)
+      const result = getNextDueDate(dueDate, weekdayPattern);
+      expect(result).toBe('2026-02-19'); // Thu Feb 19
+    });
+
+    it('Monday (today) → Tuesday', () => {
+      const dueDate = '2026-02-16T00:00:00.000Z'; // Mon Feb 16 (today)
+      const result = getNextDueDate(dueDate, weekdayPattern);
+      expect(result).toBe('2026-02-17'); // Tue Feb 17
+    });
+  });
+
+  describe('fastForwardDueDate', () => {
+    it('lands on today (Monday) when overdue from last week', () => {
+      const dueDate = '2026-02-09T00:00:00.000Z'; // Mon Feb 9
+      const result = fastForwardDueDate(dueDate, weekdayPattern);
+      expect(result).toBe('2026-02-16'); // Mon Feb 16 (today)
+    });
+
+    it('lands on Friday when today is weekend (Sat)', () => {
+      vi.setSystemTime(new Date('2026-02-21T00:00:00.000Z')); // Sat Feb 21
+      const dueDate = '2026-02-09T00:00:00.000Z'; // Mon Feb 9
+      const result = fastForwardDueDate(dueDate, weekdayPattern);
+      expect(result).toBe('2026-02-20'); // Fri Feb 20
+    });
+  });
+});
+
 // Custom matcher for array membership
 expect.extend({
   toBeOneOf(received: unknown, expected: unknown[]) {
