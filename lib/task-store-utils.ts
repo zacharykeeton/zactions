@@ -109,6 +109,63 @@ export function setArchivedDeep(items: Task[], archived: boolean): Task[] {
   }));
 }
 
+/**
+ * Merge a reordered subset of tasks back into the full task tree.
+ *
+ * When viewing a filtered list, the UI only passes the visible (reordered)
+ * tasks.  This function preserves tasks from other lists and reinserts
+ * archived tasks that were stripped before the UI received the tree.
+ */
+export function mergeReorderedTasks(prev: Task[], reorderedActiveTasks: Task[]): Task[] {
+  // 1. Collect archived tasks from previous state, keyed by parent ID.
+  const archivedByParent = new Map<string | null, Task[]>();
+  function collectArchived(items: Task[], parentId: string | null) {
+    for (const item of items) {
+      if (item.archived) {
+        const list = archivedByParent.get(parentId) || [];
+        list.push(item);
+        archivedByParent.set(parentId, list);
+      } else {
+        collectArchived(item.children, item.id);
+      }
+    }
+  }
+  collectArchived(prev, null);
+
+  // 2. Collect all IDs present in the reordered tree so we can
+  //    identify root-level tasks from other lists that weren't included.
+  const reorderedIds = new Set<string>();
+  function collectIds(items: Task[]) {
+    for (const item of items) {
+      reorderedIds.add(item.id);
+      collectIds(item.children);
+    }
+  }
+  collectIds(reorderedActiveTasks);
+
+  // 3. Preserve non-archived root-level tasks from prev that aren't
+  //    in the reordered set (i.e., tasks from other lists).
+  const preservedTasks: Task[] = [];
+  for (const task of prev) {
+    if (!task.archived && !reorderedIds.has(task.id)) {
+      preservedTasks.push(task);
+    }
+  }
+
+  // 4. Reinsert archived tasks at their original parent positions.
+  function reinsert(items: Task[], parentId: string | null): Task[] {
+    const result = items.map((item) => ({
+      ...item,
+      children: reinsert(item.children, item.id),
+    }));
+    const archived = archivedByParent.get(parentId);
+    if (archived) result.push(...archived);
+    return result;
+  }
+
+  return [...reinsert(reorderedActiveTasks, null), ...preservedTasks];
+}
+
 /** Find a task by ID and set archived on it + all children. */
 export function setArchivedOnTask(items: Task[], id: string, archived: boolean): Task[] {
   return items.map((item) => {

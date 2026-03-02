@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { migrateTask, removeDependencyRef, resetChildrenDeep, setArchivedDeep, setArchivedOnTask, daysBetweenDates, shiftDatesDeep } from "./task-store-utils";
+import { migrateTask, removeDependencyRef, resetChildrenDeep, mergeReorderedTasks, setArchivedDeep, setArchivedOnTask, daysBetweenDates, shiftDatesDeep } from "./task-store-utils";
 import type { Task, CompletionRecord } from "./types";
 
 /** Minimal task factory for testing. */
@@ -573,5 +573,145 @@ describe("shiftDatesDeep", () => {
 
     const result = shiftDatesDeep(items, 3);
     expect(result[0].dueDate).toBe("2026-02-02");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// mergeReorderedTasks
+// ---------------------------------------------------------------------------
+
+describe("mergeReorderedTasks", () => {
+  it("preserves tasks from other lists when reordering a filtered list", () => {
+    const listA1 = makeTask({ id: "a1", listId: "listA" });
+    const listA2 = makeTask({ id: "a2", listId: "listA" });
+    const listB1 = makeTask({ id: "b1", listId: "listB" });
+    const listB2 = makeTask({ id: "b2", listId: "listB" });
+    const prev = [listA1, listA2, listB1, listB2];
+
+    // User reordered List A only (swapped a1 and a2)
+    const reordered = [listA2, listA1];
+
+    const result = mergeReorderedTasks(prev, reordered);
+
+    // Reordered tasks come first, preserved tasks after
+    expect(result.map((t) => t.id)).toEqual(["a2", "a1", "b1", "b2"]);
+  });
+
+  it("preserves inbox tasks when reordering a named list", () => {
+    const inbox1 = makeTask({ id: "inbox1" }); // no listId = inbox
+    const listTask = makeTask({ id: "lt1", listId: "myList" });
+    const prev = [inbox1, listTask];
+
+    const reordered = [listTask]; // reordering "myList" view
+
+    const result = mergeReorderedTasks(prev, reordered);
+    expect(result.map((t) => t.id)).toEqual(["lt1", "inbox1"]);
+  });
+
+  it("preserves named-list tasks when reordering inbox", () => {
+    const inbox1 = makeTask({ id: "inbox1" });
+    const inbox2 = makeTask({ id: "inbox2" });
+    const listTask = makeTask({ id: "lt1", listId: "myList" });
+    const prev = [inbox1, inbox2, listTask];
+
+    // Reordering inbox view (swapped inbox1 and inbox2)
+    const reordered = [inbox2, inbox1];
+
+    const result = mergeReorderedTasks(prev, reordered);
+    expect(result.map((t) => t.id)).toEqual(["inbox2", "inbox1", "lt1"]);
+  });
+
+  it("works correctly when reordering all tasks (no tasks to preserve)", () => {
+    const t1 = makeTask({ id: "t1" });
+    const t2 = makeTask({ id: "t2" });
+    const t3 = makeTask({ id: "t3" });
+    const prev = [t1, t2, t3];
+
+    const reordered = [t3, t1, t2];
+
+    const result = mergeReorderedTasks(prev, reordered);
+    expect(result.map((t) => t.id)).toEqual(["t3", "t1", "t2"]);
+  });
+
+  it("reinserts archived tasks at their original parent positions", () => {
+    const archivedChild = makeTask({ id: "ac", archived: true });
+    const parent = makeTask({ id: "p", children: [makeTask({ id: "c1" }), archivedChild] });
+    const prev = [parent];
+
+    // UI receives parent without archived child, then reorders
+    const reordered = [{ ...parent, children: [makeTask({ id: "c1" })] }];
+
+    const result = mergeReorderedTasks(prev, reordered);
+    expect(result[0].children.map((c) => c.id)).toEqual(["c1", "ac"]);
+    expect(result[0].children[1].archived).toBe(true);
+  });
+
+  it("reinserts root-level archived tasks", () => {
+    const active = makeTask({ id: "a1" });
+    const archived = makeTask({ id: "arch", archived: true });
+    const prev = [active, archived];
+
+    // UI only sees active tasks
+    const reordered = [active];
+
+    const result = mergeReorderedTasks(prev, reordered);
+    expect(result.map((t) => t.id)).toEqual(["a1", "arch"]);
+    expect(result[1].archived).toBe(true);
+  });
+
+  it("preserves tasks from multiple different lists", () => {
+    const a = makeTask({ id: "a", listId: "listA" });
+    const b = makeTask({ id: "b", listId: "listB" });
+    const c = makeTask({ id: "c", listId: "listC" });
+    const d = makeTask({ id: "d", listId: "listA" });
+    const prev = [a, b, c, d];
+
+    // Reordering only List A (swapped a and d)
+    const reordered = [d, a];
+
+    const result = mergeReorderedTasks(prev, reordered);
+    expect(result.map((t) => t.id)).toEqual(["d", "a", "b", "c"]);
+  });
+
+  it("handles children in reordered tasks (deep ID collection)", () => {
+    const child = makeTask({ id: "child" });
+    const parent = makeTask({ id: "parent", children: [child], listId: "listA" });
+    const other = makeTask({ id: "other", listId: "listB" });
+    const prev = [parent, other];
+
+    const reordered = [parent]; // List A view, parent includes child
+
+    const result = mergeReorderedTasks(prev, reordered);
+    expect(result.map((t) => t.id)).toEqual(["parent", "other"]);
+    expect(result[0].children.map((c) => c.id)).toEqual(["child"]);
+  });
+
+  it("handles empty reordered input (preserves all tasks)", () => {
+    const t1 = makeTask({ id: "t1" });
+    const t2 = makeTask({ id: "t2" });
+    const prev = [t1, t2];
+
+    const result = mergeReorderedTasks(prev, []);
+    expect(result.map((t) => t.id)).toEqual(["t1", "t2"]);
+  });
+
+  it("handles empty previous state", () => {
+    const result = mergeReorderedTasks([], []);
+    expect(result).toEqual([]);
+  });
+
+  it("combines archived reinsertion and list preservation", () => {
+    const archivedRoot = makeTask({ id: "arch", archived: true });
+    const listA = makeTask({ id: "a1", listId: "listA" });
+    const listB = makeTask({ id: "b1", listId: "listB" });
+    const prev = [listA, listB, archivedRoot];
+
+    // Reorder List A only
+    const reordered = [listA];
+
+    const result = mergeReorderedTasks(prev, reordered);
+    // Should have: reordered List A, root archived, preserved List B
+    expect(result.map((t) => t.id)).toEqual(["a1", "arch", "b1"]);
+    expect(result[1].archived).toBe(true);
   });
 });
