@@ -6,7 +6,6 @@ import { CSS } from "@dnd-kit/utilities";
 import { ChevronDown, ChevronRight, GripVertical } from "lucide-react";
 import type { Task, Tag, FlattenedTask } from "@/lib/types";
 import type { DragType } from "@/hooks/use-timeline-drag";
-import { TIMELINE_LABEL_WIDTH } from "@/lib/constants";
 import {
   TimelineTaskLabel,
   TimelineTaskBar,
@@ -32,6 +31,7 @@ interface TimelineSortableRowProps {
   onStartEndpointPointerDown: (taskId: string, e: React.PointerEvent) => void;
   onEndEndpointPointerDown: (taskId: string, e: React.PointerEvent) => void;
   onScheduledEndpointPointerDown: (taskId: string, e: React.PointerEvent) => void;
+  labelWidth: number;
 }
 
 export function TimelineSortableRow({
@@ -54,6 +54,7 @@ export function TimelineSortableRow({
   onStartEndpointPointerDown,
   onEndEndpointPointerDown,
   onScheduledEndpointPointerDown,
+  labelWidth,
 }: TimelineSortableRowProps) {
   const {
     attributes,
@@ -81,7 +82,7 @@ export function TimelineSortableRow({
       {/* Left panel: indent + chevron + grip + label */}
       <div
         className="shrink-0 flex items-center border-r border-border bg-background"
-        style={{ width: `${TIMELINE_LABEL_WIDTH}px` }}
+        style={{ width: labelWidth }}
       >
         {/* Depth indentation */}
         <div

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { isSameMonth, getDate } from "date-fns";
 import {
   SortableContext,
@@ -10,7 +10,8 @@ import type { Task, Tag, FlattenedTask } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { getDaysInMonthArray, isDayWeekend } from "@/lib/timeline-utils";
 import { findItemDeep } from "@/lib/tree-utils";
-import { TIMELINE_LABEL_WIDTH } from "@/lib/constants";
+import { GripVertical } from "lucide-react";
+import { TIMELINE_LABEL_WIDTH, TIMELINE_LABEL_WIDTH_KEY } from "@/lib/constants";
 import { useGridDayWidth } from "@/hooks/use-grid-day-width";
 import { useTimelineDrag } from "@/hooks/use-timeline-drag";
 import { TimelineSortableRow } from "@/components/timeline-sortable-row";
@@ -51,6 +52,45 @@ export function TimelineGrid({
   onToggleCollapse,
 }: TimelineGridProps) {
   const timelineRef = useRef<HTMLDivElement>(null);
+  const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  const [labelWidth, setLabelWidth] = useState(() => {
+    if (typeof window === "undefined") return TIMELINE_LABEL_WIDTH;
+    const stored = localStorage.getItem(TIMELINE_LABEL_WIDTH_KEY);
+    return stored ? Number(stored) : TIMELINE_LABEL_WIDTH;
+  });
+
+  const handleResizePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault();
+      const el = e.currentTarget as HTMLElement;
+      el.setPointerCapture(e.pointerId);
+      resizeRef.current = { startX: e.clientX, startWidth: labelWidth };
+
+      const onMove = (ev: PointerEvent) => {
+        if (!resizeRef.current) return;
+        const newWidth = Math.max(
+          120,
+          Math.min(500, resizeRef.current.startWidth + (ev.clientX - resizeRef.current.startX))
+        );
+        setLabelWidth(newWidth);
+      };
+
+      const onUp = () => {
+        resizeRef.current = null;
+        el.removeEventListener("pointermove", onMove);
+        el.removeEventListener("pointerup", onUp);
+        setLabelWidth((w) => {
+          localStorage.setItem(TIMELINE_LABEL_WIDTH_KEY, String(w));
+          return w;
+        });
+      };
+
+      el.addEventListener("pointermove", onMove);
+      el.addEventListener("pointerup", onUp);
+    },
+    [labelWidth]
+  );
 
   const days = useMemo(() => getDaysInMonthArray(monthStart), [monthStart]);
 
@@ -97,12 +137,12 @@ export function TimelineGrid({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="border rounded-lg overflow-hidden">
+      <div className="border rounded-lg overflow-hidden relative">
         {/* Header row */}
         <div className="flex">
           <div
             className="shrink-0 border-r border-border bg-background"
-            style={{ width: `${TIMELINE_LABEL_WIDTH}px` }}
+            style={{ width: labelWidth }}
           >
             <div className="h-10 border-b border-border flex items-center px-3">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -137,7 +177,7 @@ export function TimelineGrid({
             {/* Grid decorations over right panel */}
             <div
               className="absolute top-0 bottom-0 pointer-events-none z-0"
-              style={{ left: `${TIMELINE_LABEL_WIDTH}px`, right: 0 }}
+              style={{ left: labelWidth, right: 0 }}
             >
               <div className="absolute inset-0 flex" aria-hidden="true">
                 {days.map((day) => (
@@ -180,11 +220,24 @@ export function TimelineGrid({
                 hasChildren={item.children.length > 0}
                 isCollapsed={collapsedIds.has(item.id)}
                 onToggleCollapse={onToggleCollapse}
+                labelWidth={labelWidth}
                 {...dragProps}
               />
             ))}
           </div>
         </SortableContext>
+
+        {/* Resize handle */}
+        <div
+          className="absolute top-0 bottom-0 z-10 w-2 -translate-x-1/2 cursor-col-resize group/resize flex items-center justify-center"
+          style={{ left: labelWidth }}
+          onPointerDown={handleResizePointerDown}
+        >
+          <div className="absolute inset-y-0 w-px bg-border/0 group-hover/resize:bg-border/60 group-active/resize:bg-primary/40 transition-colors" />
+          <div className="opacity-0 group-hover/resize:opacity-100 group-active/resize:opacity-100 transition-opacity bg-muted border rounded-sm p-0.5">
+            <GripVertical className="h-3 w-3 text-muted-foreground" />
+          </div>
+        </div>
       </div>
     </TooltipProvider>
   );

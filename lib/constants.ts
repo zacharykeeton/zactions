@@ -27,6 +27,7 @@ export const TIMELINE_NON_RECURRING_SECTION_KEY = "timeline-section-nonrecurring
 export const TIMELINE_UNSCHEDULED_SECTION_KEY = "timeline-section-unscheduled-open";
 export const TIMELINE_DAY_MIN_WIDTH = 32;
 export const TIMELINE_LABEL_WIDTH = 200;
+export const TIMELINE_LABEL_WIDTH_KEY = "timeline-label-width";
 export const TIMELINE_ROW_HEIGHT = 36;
 export const TIMELINE_BAR_HEIGHT = 20;
 
