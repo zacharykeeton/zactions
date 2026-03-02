@@ -138,7 +138,7 @@ export function TimelineTaskBar({
   // Determine if start/end/scheduled dates fall outside the visible month
   const range = getTaskDateRange(task);
   const startOutOfRange = range.start ? isBefore(parseISO(range.start), monthStart) : false;
-  const endOutOfRange = range.end ? isAfter(parseISO(range.end), monthEnd) : false;
+  const endOutOfRange = range.end ? isAfter(parseISO(range.end), monthEnd) : !!range.start;
   const scheduledOutOfRange = task.scheduledDate
     ? isBefore(parseISO(task.scheduledDate), monthStart) || isAfter(parseISO(task.scheduledDate), monthEnd)
     : false;

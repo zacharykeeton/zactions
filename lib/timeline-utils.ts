@@ -34,7 +34,7 @@ export function getTaskDateRange(task: Task): TimelineDateRange {
     return { start: task.startDate, end: task.scheduledDate };
   }
   if (task.startDate) {
-    return { start: task.startDate, end: task.startDate };
+    return { start: task.startDate, end: null };
   }
   if (task.scheduledDate && task.dueDate) {
     return { start: task.scheduledDate, end: task.dueDate };
@@ -216,11 +216,9 @@ export function getBarColumns(
   if (!range.start) return null;
 
   const clampedStart = clampToMonth(range.start, monthStart, monthEnd);
-  const clampedEnd = clampToMonth(
-    range.end || range.start,
-    monthStart,
-    monthEnd
-  );
+  const clampedEnd = range.end
+    ? clampToMonth(range.end, monthStart, monthEnd)
+    : format(monthEnd, "yyyy-MM-dd");
 
   return {
     startCol: getDayColumn(clampedStart),

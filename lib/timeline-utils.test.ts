@@ -56,11 +56,11 @@ describe("getTaskDateRange", () => {
     });
   });
 
-  it("returns startDate as single point when only startDate exists", () => {
+  it("returns startDate with open end when only startDate exists", () => {
     const task = makeTask({ startDate: "2026-02-05" });
     expect(getTaskDateRange(task)).toEqual({
       start: "2026-02-05",
-      end: "2026-02-05",
+      end: null,
     });
   });
 
@@ -328,6 +328,14 @@ describe("getBarColumns", () => {
     expect(getBarColumns(task, monthStart, monthEnd)).toEqual({
       startCol: 10,
       endCol: 10,
+    });
+  });
+
+  it("extends start-only task to end of month", () => {
+    const task = makeTask({ startDate: "2026-02-05" });
+    expect(getBarColumns(task, monthStart, monthEnd)).toEqual({
+      startCol: 5,
+      endCol: 28,
     });
   });
 
