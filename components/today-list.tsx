@@ -11,8 +11,8 @@ import {
 } from "@dnd-kit/sortable";
 import type { Task, Tag, FlattenedTask } from "@/lib/types";
 import {
-  getTasksForToday,
-  getOptionalTasksForToday,
+  getTasksForTodayWithChildren,
+  getOptionalTasksForTodayWithChildren,
   getRecurringTasksForTodayWithChildren,
   getTodayProgress,
   flattenTree,
@@ -31,7 +31,6 @@ import { isSidebarDroppableId } from "@/lib/dnd-utils";
 import { formatEstimate } from "@/lib/time-utils";
 import { getBlockingTask } from "@/lib/dependency-utils";
 import { Progress } from "@/components/ui/progress";
-import { TodayTaskItem } from "@/components/today-task-item";
 import { TaskItem } from "@/components/task-item";
 
 /** Remove descendants of collapsed tasks from a flattened list. */
@@ -186,60 +185,85 @@ export function TodayList({
     [flattenedRecurring]
   );
 
-  // --- Non-recurring (scheduled) tasks — exclude recurring children ---
-  const allTodayTasks = useMemo(
-    () => getTasksForToday(tasks, targetDate, excludeIds),
+  // --- Non-recurring (scheduled) tasks — exclude recurring children, preserve hierarchy ---
+  const { tasks: allScheduledTrees, claimedIds: scheduledClaimedIds } = useMemo(
+    () => getTasksForTodayWithChildren(tasks, targetDate, excludeIds),
     [tasks, targetDate, excludeIds]
   );
-  const todayTasks = useMemo(
-    () => (listFilter ? listFilter(allTodayTasks) : allTodayTasks),
-    [allTodayTasks, listFilter]
+  const scheduledTrees = useMemo(
+    () => (listFilter ? allScheduledTrees.filter((t) => listFilter([t]).length > 0) : allScheduledTrees),
+    [allScheduledTrees, listFilter]
   );
-
-  const sortedTodayTasks = useMemo(
-    () => sortTodayTasks(todayTasks, sortOrder),
-    [todayTasks, sortOrder]
+  const sortedScheduledTrees = useMemo(
+    () => sortTodayTasks(scheduledTrees, sortOrder),
+    [scheduledTrees, sortOrder]
+  );
+  const fullFlattenedScheduled = useMemo(
+    () => flattenTree(sortedScheduledTrees),
+    [sortedScheduledTrees]
+  );
+  const flattenedScheduled = useMemo(
+    () => filterCollapsed(fullFlattenedScheduled, collapsedIds),
+    [fullFlattenedScheduled, collapsedIds]
+  );
+  const scheduledIds = useMemo(
+    () => flattenedScheduled.map((t) => t.id),
+    [flattenedScheduled]
   );
 
   useEffect(() => {
-    if (todayTasks.length === 0 || sortOrder.length === 0) return;
-    const validIds = new Set(todayTasks.map((t) => t.id));
+    if (scheduledTrees.length === 0 || sortOrder.length === 0) return;
+    const validIds = new Set(scheduledTrees.map((t) => t.id));
     const hasStaleIds = sortOrder.some((id) => !validIds.has(id));
     if (hasStaleIds) {
       cleanupStaleIds(validIds);
     }
-  }, [todayTasks, sortOrder, cleanupStaleIds]);
+  }, [scheduledTrees, sortOrder, cleanupStaleIds]);
 
-  // Progress includes both flattened recurring items and non-recurring items
+  // Progress includes both flattened recurring items and scheduled items
   const allProgressTasks = useMemo(
-    () => [...fullFlattenedRecurring, ...sortedTodayTasks],
-    [fullFlattenedRecurring, sortedTodayTasks]
+    () => [...fullFlattenedRecurring, ...fullFlattenedScheduled],
+    [fullFlattenedRecurring, fullFlattenedScheduled]
   );
   const { completedCount, totalCount, percentage: completionPercent } = useMemo(
     () => getTodayProgress(allProgressTasks, targetDate),
     [allProgressTasks, targetDate]
   );
 
-  const nonRecurringTasks = sortedTodayTasks;
-  const nonRecurringIds = useMemo(() => nonRecurringTasks.map((t) => t.id), [nonRecurringTasks]);
+  // Optional tasks: available (startDate <= today) but not due/scheduled today — preserve hierarchy
+  const combinedExcludeIds = useMemo(() => {
+    const combined = new Set(excludeIds);
+    for (const id of scheduledClaimedIds) combined.add(id);
+    return combined;
+  }, [excludeIds, scheduledClaimedIds]);
 
-  // Optional tasks: available (startDate <= today) but not due/scheduled today
-  const allOptionalTasks = useMemo(
-    () => getOptionalTasksForToday(tasks, targetDate, excludeIds),
-    [tasks, targetDate, excludeIds]
+  const allOptionalTrees = useMemo(
+    () => getOptionalTasksForTodayWithChildren(tasks, targetDate, combinedExcludeIds),
+    [tasks, targetDate, combinedExcludeIds]
   );
-  const optionalTasks = useMemo(
-    () => (listFilter ? listFilter(allOptionalTasks) : allOptionalTasks),
-    [allOptionalTasks, listFilter]
+  const optionalTrees = useMemo(
+    () => (listFilter ? allOptionalTrees.filter((t) => listFilter([t]).length > 0) : allOptionalTrees),
+    [allOptionalTrees, listFilter]
   );
-  const sortedOptionalTasks = useMemo(
-    () => sortTodayTasks(optionalTasks, sortOrder),
-    [optionalTasks, sortOrder]
+  const sortedOptionalTrees = useMemo(
+    () => sortTodayTasks(optionalTrees, sortOrder),
+    [optionalTrees, sortOrder]
   );
-  const optionalIds = useMemo(() => sortedOptionalTasks.map((t) => t.id), [sortedOptionalTasks]);
+  const fullFlattenedOptional = useMemo(
+    () => flattenTree(sortedOptionalTrees),
+    [sortedOptionalTrees]
+  );
+  const flattenedOptional = useMemo(
+    () => filterCollapsed(fullFlattenedOptional, collapsedIds),
+    [fullFlattenedOptional, collapsedIds]
+  );
+  const optionalIds = useMemo(
+    () => flattenedOptional.map((t) => t.id),
+    [flattenedOptional]
+  );
 
   const timeBudget = useMemo(() => {
-    const allDayTasks = [...sortedTodayTasks, ...sortedOptionalTasks];
+    const allDayTasks = [...fullFlattenedScheduled, ...fullFlattenedOptional];
     let totalEstimateMs = 0;
     let totalInvestedMs = 0;
     let hasEstimate = false;
@@ -256,11 +280,11 @@ export function TodayList({
     }
 
     return { totalEstimateMs, totalInvestedMs, hasEstimate };
-  }, [sortedTodayTasks, sortedOptionalTasks, activeTimerId, currentElapsedMs]);
+  }, [fullFlattenedScheduled, fullFlattenedOptional, activeTimerId, currentElapsedMs]);
 
   const sortedIds = useMemo(
-    () => [...recurringIds, ...nonRecurringIds, ...optionalIds],
-    [recurringIds, nonRecurringIds, optionalIds]
+    () => [...recurringIds, ...scheduledIds, ...optionalIds],
+    [recurringIds, scheduledIds, optionalIds]
   );
 
   const [recurringOpen, setRecurringOpen] = useState(() => readSectionState(recurringSectionKey));
@@ -305,7 +329,7 @@ export function TodayList({
       // Reject cross-group drops
       function getGroup(id: string): string {
         if (recurringIds.includes(id)) return "recurring";
-        if (nonRecurringIds.includes(id)) return "nonRecurring";
+        if (scheduledIds.includes(id)) return "scheduled";
         if (optionalIds.includes(id)) return "optional";
         return "unknown";
       }
@@ -319,7 +343,7 @@ export function TodayList({
     },
   });
 
-  if (todayTasks.length === 0 && filteredRecurringWithChildren.length === 0 && optionalTasks.length === 0) {
+  if (scheduledTrees.length === 0 && filteredRecurringWithChildren.length === 0 && optionalTrees.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed py-16">
         <CalendarCheck className="h-12 w-12 text-muted-foreground" />
@@ -333,7 +357,7 @@ export function TodayList({
     );
   }
 
-  function renderRecurringTaskItem(task: FlattenedTask) {
+  function renderTreeTaskItem(task: FlattenedTask) {
     const blockingTask = getBlockingTask(tasks, task);
     return (
       <TaskItem
@@ -360,34 +384,6 @@ export function TodayList({
         hasChildren={task.children.length > 0}
         isCollapsed={collapsedIds.has(task.id)}
         onToggleCollapse={toggleCollapsed}
-        tagMap={tagMap}
-        blockingTaskTitle={blockingTask?.title}
-      />
-    );
-  }
-
-  function renderTaskItem(task: Task) {
-    const isTimerActive = task.id === activeTimerId;
-    const displayTimeMs = isTimerActive
-      ? task.timeInvestedMs + currentElapsedMs
-      : task.timeInvestedMs;
-    const blockingTask = getBlockingTask(tasks, task);
-
-    return (
-      <TodayTaskItem
-        key={task.id}
-        task={task}
-        onToggle={onToggle}
-        onDelete={onDelete}
-        onEdit={onEdit}
-        onDuplicate={onDuplicate}
-        onArchive={onArchive}
-        onFastForward={onFastForward}
-        onSkipToday={onSkipToday}
-        isTimerActive={isTimerActive}
-        displayTimeMs={displayTimeMs}
-        onStartTimer={onStartTimer}
-        onPauseTimer={onPauseTimer}
         tagMap={tagMap}
         blockingTaskTitle={blockingTask?.title}
       />
@@ -434,7 +430,7 @@ export function TodayList({
         count={filteredRecurringWithChildren.length}
       >
         <SortableContext items={recurringIds} strategy={verticalListSortingStrategy}>
-          {flattenedRecurring.map(renderRecurringTaskItem)}
+          {flattenedRecurring.map(renderTreeTaskItem)}
         </SortableContext>
       </CollapsibleSection>
 
@@ -442,22 +438,22 @@ export function TodayList({
         title="Scheduled"
         open={nonRecurringOpen}
         onToggle={toggleNonRecurring}
-        count={nonRecurringTasks.length}
+        count={sortedScheduledTrees.length}
       >
-        <SortableContext items={nonRecurringIds} strategy={verticalListSortingStrategy}>
-          {nonRecurringTasks.map(renderTaskItem)}
+        <SortableContext items={scheduledIds} strategy={verticalListSortingStrategy}>
+          {flattenedScheduled.map(renderTreeTaskItem)}
         </SortableContext>
       </CollapsibleSection>
 
-      {sortedOptionalTasks.length > 0 && (
+      {sortedOptionalTrees.length > 0 && (
         <CollapsibleSection
           title="Optional"
           open={optionalOpen}
           onToggle={toggleOptional}
-          count={sortedOptionalTasks.length}
+          count={sortedOptionalTrees.length}
         >
           <SortableContext items={optionalIds} strategy={verticalListSortingStrategy}>
-            {sortedOptionalTasks.map(renderTaskItem)}
+            {flattenedOptional.map(renderTreeTaskItem)}
           </SortableContext>
         </CollapsibleSection>
       )}

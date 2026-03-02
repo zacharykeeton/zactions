@@ -285,6 +285,94 @@ export function getOptionalTasksForToday(tasks: Task[], today: Date, excludeIds?
 }
 
 /**
+ * Like getTasksForToday but preserves parent-child hierarchy.
+ * When a parent qualifies, it is included with ALL its children (as a tree).
+ * When only a child qualifies, it bubbles up as a root-level item.
+ * Returns both the tree results and a set of all claimed IDs (to avoid duplicates in other sections).
+ */
+export function getTasksForTodayWithChildren(
+  tasks: Task[],
+  today: Date,
+  excludeIds?: Set<string>
+): { tasks: Task[]; claimedIds: Set<string> } {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  const claimedIds = new Set<string>();
+
+  function qualifiesForDate(task: Task): boolean {
+    if (task.startDate && task.startDate > todayStr) return false;
+    if (task.completed && task.completedDate && isBefore(parseISO(task.completedDate), today)) return false;
+    const isDueToday = task.dueDate && isSameDay(parseISO(task.dueDate), today);
+    const isScheduledToday = task.scheduledDate && isSameDay(parseISO(task.scheduledDate), today);
+    const isPastDue = task.dueDate && !task.completed && isBefore(parseISO(task.dueDate), today);
+    const isPastScheduled = task.scheduledDate && !task.completed && isBefore(parseISO(task.scheduledDate), today);
+    return !!(isDueToday || isScheduledToday || isPastDue || isPastScheduled);
+  }
+
+  function markClaimed(task: Task) {
+    claimedIds.add(task.id);
+    for (const child of task.children) markClaimed(child);
+  }
+
+  function collectTree(items: Task[]): Task[] {
+    const results: Task[] = [];
+    for (const task of items) {
+      if (excludeIds?.has(task.id)) continue;
+      if (task.archived) continue;
+      if (qualifiesForDate(task)) {
+        results.push(task);
+        markClaimed(task);
+      } else {
+        results.push(...collectTree(task.children));
+      }
+    }
+    return results;
+  }
+
+  return { tasks: collectTree(tasks), claimedIds };
+}
+
+/**
+ * Like getOptionalTasksForToday but preserves parent-child hierarchy.
+ * When a parent qualifies as optional, it is included with ALL its children.
+ * When only a child qualifies, it bubbles up as a root-level item.
+ */
+export function getOptionalTasksForTodayWithChildren(
+  tasks: Task[],
+  today: Date,
+  excludeIds?: Set<string>
+): Task[] {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+
+  function qualifiesAsOptional(task: Task): boolean {
+    if (task.completed) return false;
+    if (!task.startDate || task.startDate > todayStr) return false;
+    const isDueToday = task.dueDate && isSameDay(parseISO(task.dueDate), today);
+    const isScheduledToday = task.scheduledDate && isSameDay(parseISO(task.scheduledDate), today);
+    const isPastDue = task.dueDate && isBefore(parseISO(task.dueDate), today);
+    const isPastScheduled = task.scheduledDate && isBefore(parseISO(task.scheduledDate), today);
+    return !isDueToday && !isScheduledToday && !isPastDue && !isPastScheduled;
+  }
+
+  function collectTree(items: Task[]): Task[] {
+    const results: Task[] = [];
+    for (const task of items) {
+      if (excludeIds?.has(task.id)) continue;
+      if (task.archived) continue;
+      if (qualifiesAsOptional(task)) {
+        results.push(task);
+      } else {
+        results.push(...collectTree(task.children));
+      }
+    }
+    return results;
+  }
+
+  return collectTree(tasks);
+}
+
+/**
  * Check if a task was completed today, including recurring tasks that have been reset.
  * Returns true if:
  * - Task is currently marked as completed, OR
