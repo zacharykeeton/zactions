@@ -7,7 +7,7 @@ import { removeItem, findItemDeep } from "@/lib/tree-utils";
 import { isTaskBlocked } from "@/lib/dependency-utils";
 import { getNextDueDate, fastForwardDueDate } from "@/lib/recurrence-utils";
 import { LOCAL_STORAGE_KEY } from "@/lib/constants";
-import { migrateTask, removeDependencyRef, resetChildrenDeep, setArchivedOnTask } from "@/lib/task-store-utils";
+import { migrateTask, removeDependencyRef, resetChildrenDeep, setArchivedOnTask, daysBetweenDates, shiftDatesDeep } from "@/lib/task-store-utils";
 
 export function useTaskStore() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -138,6 +138,7 @@ export function useTaskStore() {
       // Recurring task: reset in place with advanced due date
       if (newCompleted && task.recurrence && task.dueDate) {
         const nextDue = getNextDueDate(task.dueDate, task.recurrence);
+        const delta = daysBetweenDates(task.dueDate, nextDue);
         const now = new Date().toISOString();
         const update = (items: Task[]): Task[] =>
           items.map((item) => {
@@ -148,7 +149,7 @@ export function useTaskStore() {
                 dueDate: nextDue,
                 completedDate: null,
                 timeInvestedMs: 0,
-                children: resetChildrenDeep(item.children),
+                children: shiftDatesDeep(resetChildrenDeep(item.children), delta),
                 completionHistory: [...(item.completionHistory || []), {
                   scheduledDate: item.scheduledDate,
                   dueDate: item.dueDate!,
@@ -249,6 +250,7 @@ export function useTaskStore() {
 
       // Calculate the next due date >= today
       const nextDue = fastForwardDueDate(task.dueDate, task.recurrence);
+      const delta = daysBetweenDates(task.dueDate, nextDue);
 
       // Update the task with the new due date
       const update = (items: Task[]): Task[] =>
@@ -257,7 +259,7 @@ export function useTaskStore() {
             return {
               ...item,
               dueDate: nextDue,
-              children: resetChildrenDeep(item.children),
+              children: shiftDatesDeep(resetChildrenDeep(item.children), delta),
             };
           }
           if (item.children.length > 0)
@@ -288,6 +290,10 @@ export function useTaskStore() {
 
       if (!dueShouldSkip && !scheduledShouldSkip) return prev;
 
+      const delta = dueShouldSkip
+        ? daysBetweenDates(task.dueDate!, tomorrowStr)
+        : daysBetweenDates(task.scheduledDate!, tomorrowStr);
+
       const update = (items: Task[]): Task[] =>
         items.map((item) => {
           if (item.id === id) {
@@ -295,6 +301,7 @@ export function useTaskStore() {
               ...item,
               ...(dueShouldSkip && { dueDate: tomorrowStr }),
               ...(scheduledShouldSkip && { scheduledDate: tomorrowStr }),
+              children: shiftDatesDeep(item.children, delta),
             };
           }
           if (item.children.length > 0)

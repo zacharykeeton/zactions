@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { migrateTask, removeDependencyRef, resetChildrenDeep, setArchivedDeep, setArchivedOnTask } from "./task-store-utils";
+import { migrateTask, removeDependencyRef, resetChildrenDeep, setArchivedDeep, setArchivedOnTask, daysBetweenDates, shiftDatesDeep } from "./task-store-utils";
 import type { Task, CompletionRecord } from "./types";
 
 /** Minimal task factory for testing. */
@@ -472,5 +472,106 @@ describe("setArchivedOnTask", () => {
     expect(result[0].archived).toBe(true);
     expect(result[0].children[0].archived).toBe(true);
     expect(result[0].children[0].children[0].archived).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// daysBetweenDates
+// ---------------------------------------------------------------------------
+
+describe("daysBetweenDates", () => {
+  it("returns 0 for the same date", () => {
+    expect(daysBetweenDates("2026-03-01", "2026-03-01")).toBe(0);
+  });
+
+  it("returns positive delta for a later date", () => {
+    expect(daysBetweenDates("2026-03-01", "2026-03-08")).toBe(7);
+  });
+
+  it("returns negative delta for an earlier date", () => {
+    expect(daysBetweenDates("2026-03-08", "2026-03-01")).toBe(-7);
+  });
+
+  it("works across month boundaries", () => {
+    expect(daysBetweenDates("2026-01-28", "2026-02-04")).toBe(7);
+  });
+
+  it("works across year boundaries", () => {
+    expect(daysBetweenDates("2025-12-30", "2026-01-02")).toBe(3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// shiftDatesDeep
+// ---------------------------------------------------------------------------
+
+describe("shiftDatesDeep", () => {
+  it("shifts all date fields by a positive delta", () => {
+    const items = [
+      makeTask({
+        id: "a",
+        dueDate: "2026-03-01",
+        scheduledDate: "2026-02-28",
+        startDate: "2026-02-25",
+      }),
+    ];
+
+    const result = shiftDatesDeep(items, 7);
+    expect(result[0].dueDate).toBe("2026-03-08");
+    expect(result[0].scheduledDate).toBe("2026-03-07");
+    expect(result[0].startDate).toBe("2026-03-04");
+  });
+
+  it("skips null/undefined date fields", () => {
+    const items = [
+      makeTask({ id: "a", dueDate: "2026-03-01", scheduledDate: null, startDate: null }),
+    ];
+
+    const result = shiftDatesDeep(items, 3);
+    expect(result[0].dueDate).toBe("2026-03-04");
+    expect(result[0].scheduledDate).toBeNull();
+    expect(result[0].startDate).toBeNull();
+  });
+
+  it("returns items unchanged when delta is 0", () => {
+    const items = [
+      makeTask({ id: "a", dueDate: "2026-03-01" }),
+    ];
+
+    const result = shiftDatesDeep(items, 0);
+    expect(result).toBe(items); // same reference
+  });
+
+  it("recurses into nested children", () => {
+    const grandchild = makeTask({ id: "gc", dueDate: "2026-03-01", scheduledDate: "2026-03-01" });
+    const child = makeTask({ id: "c", dueDate: "2026-03-01", children: [grandchild] });
+    const items = [child];
+
+    const result = shiftDatesDeep(items, 7);
+    expect(result[0].dueDate).toBe("2026-03-08");
+    expect(result[0].children[0].dueDate).toBe("2026-03-08");
+    expect(result[0].children[0].scheduledDate).toBe("2026-03-08");
+  });
+
+  it("handles negative deltas", () => {
+    const items = [
+      makeTask({ id: "a", dueDate: "2026-03-10" }),
+    ];
+
+    const result = shiftDatesDeep(items, -3);
+    expect(result[0].dueDate).toBe("2026-03-07");
+  });
+
+  it("returns empty array for empty input", () => {
+    expect(shiftDatesDeep([], 5)).toEqual([]);
+  });
+
+  it("shifts dates across month boundaries correctly", () => {
+    const items = [
+      makeTask({ id: "a", dueDate: "2026-01-30" }),
+    ];
+
+    const result = shiftDatesDeep(items, 3);
+    expect(result[0].dueDate).toBe("2026-02-02");
   });
 });

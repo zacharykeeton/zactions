@@ -69,6 +69,37 @@ export function resetChildrenDeep(items: Task[]): Task[] {
   });
 }
 
+const MS_PER_DAY = 86_400_000;
+
+/** Compute the number of days between two YYYY-MM-DD date strings using UTC midnights. */
+export function daysBetweenDates(from: string, to: string): number {
+  const f = new Date(from + "T00:00:00Z").getTime();
+  const t = new Date(to + "T00:00:00Z").getTime();
+  return Math.round((t - f) / MS_PER_DAY);
+}
+
+/** Shift a YYYY-MM-DD date string by `deltaDays` days. */
+function shiftDate(dateStr: string, deltaDays: number): string {
+  const d = new Date(dateStr + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + deltaDays);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Recursively shift dueDate, scheduledDate, and startDate on all items by `deltaDays`. */
+export function shiftDatesDeep(items: Task[], deltaDays: number): Task[] {
+  if (deltaDays === 0) return items;
+  return items.map((item) => ({
+    ...item,
+    dueDate: item.dueDate ? shiftDate(item.dueDate, deltaDays) : null,
+    scheduledDate: item.scheduledDate ? shiftDate(item.scheduledDate, deltaDays) : null,
+    startDate: item.startDate ? shiftDate(item.startDate, deltaDays) : null,
+    children: shiftDatesDeep(item.children, deltaDays),
+  }));
+}
+
 /** Recursively set the archived flag on all items and their children. */
 export function setArchivedDeep(items: Task[], archived: boolean): Task[] {
   return items.map((item) => ({
