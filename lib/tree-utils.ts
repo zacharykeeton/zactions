@@ -286,8 +286,7 @@ export function getOptionalTasksForToday(tasks: Task[], today: Date, excludeIds?
 
 /**
  * Like getTasksForToday but preserves parent-child hierarchy.
- * When a parent qualifies, it is included with ALL its children (as a tree).
- * When only a child qualifies, it bubbles up as a root-level item.
+ * When a task or any of its descendants qualifies, the task is included with ALL its children (as a tree).
  * Returns both the tree results and a set of all claimed IDs (to avoid duplicates in other sections).
  */
 export function getTasksForTodayWithChildren(
@@ -314,16 +313,23 @@ export function getTasksForTodayWithChildren(
     for (const child of task.children) markClaimed(child);
   }
 
+  function anyDescendantQualifies(task: Task): boolean {
+    for (const child of task.children) {
+      if (child.archived) continue;
+      if (excludeIds?.has(child.id)) continue;
+      if (qualifiesForDate(child) || anyDescendantQualifies(child)) return true;
+    }
+    return false;
+  }
+
   function collectTree(items: Task[]): Task[] {
     const results: Task[] = [];
     for (const task of items) {
       if (excludeIds?.has(task.id)) continue;
       if (task.archived) continue;
-      if (qualifiesForDate(task)) {
+      if (qualifiesForDate(task) || anyDescendantQualifies(task)) {
         results.push(task);
         markClaimed(task);
-      } else {
-        results.push(...collectTree(task.children));
       }
     }
     return results;
@@ -334,8 +340,7 @@ export function getTasksForTodayWithChildren(
 
 /**
  * Like getOptionalTasksForToday but preserves parent-child hierarchy.
- * When a parent qualifies as optional, it is included with ALL its children.
- * When only a child qualifies, it bubbles up as a root-level item.
+ * When a task or any of its descendants qualifies as optional, the task is included with ALL its children.
  */
 export function getOptionalTasksForTodayWithChildren(
   tasks: Task[],
@@ -355,15 +360,22 @@ export function getOptionalTasksForTodayWithChildren(
     return !isDueToday && !isScheduledToday && !isPastDue && !isPastScheduled;
   }
 
+  function anyDescendantQualifiesOptional(task: Task): boolean {
+    for (const child of task.children) {
+      if (child.archived) continue;
+      if (excludeIds?.has(child.id)) continue;
+      if (qualifiesAsOptional(child) || anyDescendantQualifiesOptional(child)) return true;
+    }
+    return false;
+  }
+
   function collectTree(items: Task[]): Task[] {
     const results: Task[] = [];
     for (const task of items) {
       if (excludeIds?.has(task.id)) continue;
       if (task.archived) continue;
-      if (qualifiesAsOptional(task)) {
+      if (qualifiesAsOptional(task) || anyDescendantQualifiesOptional(task)) {
         results.push(task);
-      } else {
-        results.push(...collectTree(task.children));
       }
     }
     return results;

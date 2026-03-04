@@ -296,7 +296,7 @@ export function TaskRowContent({
             <Hourglass className="h-3 w-3" />
             {formatEstimate(displayTimeMs)} / {formatEstimate(task.timeEstimateMs)}
           </span>
-        ) : show("showTimeEstimate") && (displayTimeMs > 0 || isTimerActive) ? (
+        ) : (show("showTimeEstimate") || isTimerActive) && (displayTimeMs > 0 || isTimerActive) ? (
           <span
             className={cn(
               "font-mono text-xs tabular-nums",
