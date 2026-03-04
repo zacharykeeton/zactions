@@ -679,6 +679,7 @@ export default function Home() {
                     activeId={dndActiveId}
                     overId={dndOverId}
                     offsetLeft={dndOffsetLeft}
+                    onAddSubtask={handleAddSubtask}
                   />
                 </TabsContent>
               </Tabs>

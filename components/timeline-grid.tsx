@@ -34,6 +34,7 @@ interface TimelineGridProps {
   projected: { depth: number; parentId: string | null } | null;
   collapsedIds: Set<string>;
   onToggleCollapse: (id: string) => void;
+  onAddSubtask?: (parentId: string) => void;
 }
 
 export function TimelineGrid({
@@ -50,6 +51,7 @@ export function TimelineGrid({
   projected,
   collapsedIds,
   onToggleCollapse,
+  onAddSubtask,
 }: TimelineGridProps) {
   const timelineRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
@@ -221,6 +223,7 @@ export function TimelineGrid({
                 isCollapsed={collapsedIds.has(item.id)}
                 onToggleCollapse={onToggleCollapse}
                 labelWidth={labelWidth}
+                onAddSubtask={onAddSubtask}
                 {...dragProps}
               />
             ))}

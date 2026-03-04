@@ -32,6 +32,7 @@ interface TimelineSortableRowProps {
   onEndEndpointPointerDown: (taskId: string, e: React.PointerEvent) => void;
   onScheduledEndpointPointerDown: (taskId: string, e: React.PointerEvent) => void;
   labelWidth: number;
+  onAddSubtask?: (parentId: string) => void;
 }
 
 export function TimelineSortableRow({
@@ -55,6 +56,7 @@ export function TimelineSortableRow({
   onEndEndpointPointerDown,
   onScheduledEndpointPointerDown,
   labelWidth,
+  onAddSubtask,
 }: TimelineSortableRowProps) {
   const {
     attributes,
@@ -120,6 +122,7 @@ export function TimelineSortableRow({
             onEdit={onEdit}
             tagMap={tagMap}
             indent={0}
+            onAddSubtask={onAddSubtask}
           />
         </div>
       </div>

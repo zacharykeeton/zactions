@@ -104,6 +104,7 @@ interface UnscheduledSortableItemProps {
   hasChildren: boolean;
   isCollapsed: boolean;
   onToggleCollapse: (id: string) => void;
+  onAddSubtask?: (parentId: string) => void;
 }
 
 function UnscheduledSortableItem({
@@ -115,6 +116,7 @@ function UnscheduledSortableItem({
   hasChildren,
   isCollapsed,
   onToggleCollapse,
+  onAddSubtask,
 }: UnscheduledSortableItemProps) {
   const {
     attributes,
@@ -166,6 +168,7 @@ function UnscheduledSortableItem({
           onEdit={onEdit}
           tagMap={tagMap}
           indent={0}
+          onAddSubtask={onAddSubtask}
         />
       </div>
     </div>
@@ -188,6 +191,7 @@ interface TimelineViewProps {
   activeId: UniqueIdentifier | null;
   overId: UniqueIdentifier | null;
   offsetLeft: number;
+  onAddSubtask?: (parentId: string) => void;
 }
 
 export function TimelineView({
@@ -203,6 +207,7 @@ export function TimelineView({
   activeId,
   overId,
   offsetLeft,
+  onAddSubtask,
 }: TimelineViewProps) {
   const { currentMonth, goToPreviousMonth, goToNextMonth, goToToday } =
     useTimelineState();
@@ -536,6 +541,7 @@ export function TimelineView({
                 projected={activeSection === "recurring" ? projected : null}
                 collapsedIds={collapsedIds}
                 onToggleCollapse={toggleCollapsed}
+                onAddSubtask={onAddSubtask}
               />
             ) : null}
           </CollapsibleSection>
@@ -561,6 +567,7 @@ export function TimelineView({
                 projected={activeSection === "scheduled" ? projected : null}
                 collapsedIds={collapsedIds}
                 onToggleCollapse={toggleCollapsed}
+                onAddSubtask={onAddSubtask}
               />
             ) : null}
           </CollapsibleSection>
@@ -591,6 +598,7 @@ export function TimelineView({
                   hasChildren={task.children.length > 0}
                   isCollapsed={collapsedIds.has(task.id)}
                   onToggleCollapse={toggleCollapsed}
+                  onAddSubtask={onAddSubtask}
                 />
               ))}
             </SortableContext>

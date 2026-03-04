@@ -8,6 +8,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { TimelineBar } from "@/components/timeline-bar";
 import { priorityColors, TAG_COLORS } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -32,6 +34,7 @@ interface TimelineTaskRowProps {
   onEndEndpointPointerDown: (taskId: string, e: React.PointerEvent) => void;
   onScheduledEndpointPointerDown: (taskId: string, e: React.PointerEvent) => void;
   indent?: number;
+  onAddSubtask?: (parentId: string) => void;
 }
 
 /** Task label cell for the left panel */
@@ -41,7 +44,8 @@ export function TimelineTaskLabel({
   onEdit,
   tagMap,
   indent = 0,
-}: Pick<TimelineTaskRowProps, "task" | "onToggle" | "onEdit" | "tagMap" | "indent">) {
+  onAddSubtask,
+}: Pick<TimelineTaskRowProps, "task" | "onToggle" | "onEdit" | "tagMap" | "indent" | "onAddSubtask">) {
   const range = getTaskDateRange(task);
   const dateLabel = !range.start
     ? "No date"
@@ -52,7 +56,7 @@ export function TimelineTaskLabel({
   return (
     <div
       className={cn(
-        "flex items-center gap-2 px-2 h-9 border-b border-border/40 truncate",
+        "group/label flex items-center gap-2 px-2 h-9 border-b border-border/40 truncate",
         task.completed && "opacity-50"
       )}
       style={{ paddingLeft: `${8 + indent * 16}px` }}
@@ -107,6 +111,20 @@ export function TimelineTaskLabel({
       >
         {task.priority[0].toUpperCase()}
       </Badge>
+      {onAddSubtask && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 shrink-0 opacity-0 group-hover/label:opacity-100"
+          onClick={(e) => {
+            e.stopPropagation();
+            onAddSubtask(task.id);
+          }}
+          title="Add subtask"
+        >
+          <Plus className="h-3 w-3" />
+        </Button>
+      )}
     </div>
   );
 }
