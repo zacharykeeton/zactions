@@ -325,10 +325,61 @@ describe('getOptionalTasksForToday', () => {
     expect(result).toHaveLength(0);
   });
 
-  it('should exclude tasks without startDate', () => {
+  it('should include leaf tasks with no dates at all', () => {
     const tasks = [
       makeTask({
-        id: 'no-start',
+        id: 'no-dates',
+      }),
+    ];
+    const result = getOptionalTasksForToday(tasks, today);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('no-dates');
+  });
+
+  it('should include no-date parent if a child has a past start date', () => {
+    const tasks = [
+      makeTask({
+        id: 'parent-no-dates',
+        children: [
+          makeTask({ id: 'child-started', startDate: '2026-02-18' }),
+        ],
+      }),
+    ];
+    const result = getOptionalTasksForToday(tasks, today);
+    expect(result.some((t) => t.id === 'parent-no-dates')).toBe(true);
+  });
+
+  it('should include no-date parent if a child also has no dates', () => {
+    const tasks = [
+      makeTask({
+        id: 'parent-no-dates',
+        children: [
+          makeTask({ id: 'child-no-dates' }),
+        ],
+      }),
+    ];
+    const result = getOptionalTasksForToday(tasks, today);
+    expect(result.some((t) => t.id === 'parent-no-dates')).toBe(true);
+  });
+
+  it('should exclude no-date parent if no children qualify', () => {
+    const tasks = [
+      makeTask({
+        id: 'parent-no-dates',
+        children: [
+          makeTask({ id: 'child-future', startDate: '2026-03-01', dueDate: '2026-03-05' }),
+        ],
+      }),
+    ];
+    const result = getOptionalTasksForToday(tasks, today);
+    expect(result.some((t) => t.id === 'parent-no-dates')).toBe(false);
+  });
+
+  it('should exclude tasks with only a dueDate but no startDate', () => {
+    const tasks = [
+      makeTask({
+        id: 'due-only',
+        dueDate: '2026-02-25',
       }),
     ];
     const result = getOptionalTasksForToday(tasks, today);

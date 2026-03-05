@@ -253,6 +253,17 @@ export function getOptionalTasksForToday(tasks: Task[], today: Date, excludeIds?
   const pad = (n: number) => String(n).padStart(2, "0");
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
 
+  function hasQualifyingDescendant(task: Task): boolean {
+    for (const child of task.children) {
+      if (child.archived || child.completed) continue;
+      if (excludeIds?.has(child.id)) continue;
+      if (!child.startDate && !child.dueDate && !child.scheduledDate) return true;
+      if (child.startDate && child.startDate <= todayStr) return true;
+      if (hasQualifyingDescendant(child)) return true;
+    }
+    return false;
+  }
+
   function collect(items: Task[]) {
     for (const task of items) {
       if (excludeIds?.has(task.id)) continue;
@@ -260,6 +271,15 @@ export function getOptionalTasksForToday(tasks: Task[], today: Date, excludeIds?
         continue;
       }
       if (task.completed) {
+        collect(task.children);
+        continue;
+      }
+      // Tasks with no dates at all are optional (leaf tasks always, parents only if a child qualifies)
+      const hasNoDates = !task.startDate && !task.dueDate && !task.scheduledDate;
+      if (hasNoDates) {
+        if (task.children.length === 0 || hasQualifyingDescendant(task)) {
+          results.push({ ...task, children: [] });
+        }
         collect(task.children);
         continue;
       }
@@ -352,6 +372,12 @@ export function getOptionalTasksForTodayWithChildren(
 
   function qualifiesAsOptional(task: Task): boolean {
     if (task.completed) return false;
+    // Leaf tasks with no dates at all are optional;
+    // parents with no dates need at least one qualifying descendant (checked separately)
+    if (!task.startDate && !task.dueDate && !task.scheduledDate) {
+      return task.children.length === 0;
+    }
+    // Must have a startDate that is <= today
     if (!task.startDate || task.startDate > todayStr) return false;
     const isDueToday = task.dueDate && isSameDay(parseISO(task.dueDate), today);
     const isScheduledToday = task.scheduledDate && isSameDay(parseISO(task.scheduledDate), today);
