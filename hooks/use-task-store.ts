@@ -261,17 +261,26 @@ export function useTaskStore() {
 
       if (!dueShouldSkip && !scheduledShouldSkip) return prev;
 
+      // For recurring tasks, skip to the next recurrence date instead of tomorrow.
+      // This handles patterns like weekdays-only, where Friday should skip to Monday.
+      const skipDueDate = dueShouldSkip
+        ? (task.recurrence ? getNextDueDate(task.dueDate!, task.recurrence) : tomorrowStr)
+        : undefined;
+      const skipScheduledDate = scheduledShouldSkip
+        ? (task.recurrence ? getNextDueDate(task.scheduledDate!, task.recurrence) : tomorrowStr)
+        : undefined;
+
       const delta = dueShouldSkip
-        ? daysBetweenDates(task.dueDate!, tomorrowStr)
-        : daysBetweenDates(task.scheduledDate!, tomorrowStr);
+        ? daysBetweenDates(task.dueDate!, skipDueDate!)
+        : daysBetweenDates(task.scheduledDate!, skipScheduledDate!);
 
       const update = (items: Task[]): Task[] =>
         items.map((item) => {
           if (item.id === id) {
             return {
               ...item,
-              ...(dueShouldSkip && { dueDate: tomorrowStr }),
-              ...(scheduledShouldSkip && { scheduledDate: tomorrowStr }),
+              ...(skipDueDate !== undefined && { dueDate: skipDueDate }),
+              ...(skipScheduledDate !== undefined && { scheduledDate: skipScheduledDate }),
               children: shiftDatesDeep(item.children, delta),
             };
           }
