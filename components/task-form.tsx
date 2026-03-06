@@ -41,6 +41,7 @@ interface TaskFormProps {
   availableLists?: TaskList[];
   availableDependencies?: Task[];
   defaultListId?: string;
+  defaultScheduledDate?: string;
   onSubmit: (data: {
     title: string;
     priority: Priority;
@@ -65,6 +66,7 @@ export function TaskForm({
   availableLists = [],
   availableDependencies = [],
   defaultListId,
+  defaultScheduledDate,
   onSubmit,
   onCancel,
 }: TaskFormProps) {
@@ -76,7 +78,7 @@ export function TaskForm({
     initialData?.dueDate ? parseISO(initialData.dueDate) : undefined
   );
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>(
-    initialData?.scheduledDate ? parseISO(initialData.scheduledDate) : undefined
+    initialData?.scheduledDate ? parseISO(initialData.scheduledDate) : defaultScheduledDate ? parseISO(defaultScheduledDate) : undefined
   );
   const [startDate, setStartDate] = useState<Date | undefined>(
     initialData?.startDate ? parseISO(initialData.startDate) : undefined
@@ -197,51 +199,97 @@ export function TaskForm({
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label>Priority</Label>
-        <Select value={priority} onValueChange={(v) => setPriority(v as Priority)}>
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="low">Low</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="high">High</SelectItem>
-          </SelectContent>
-        </Select>
+        <Label className="flex items-center gap-1.5">
+          <Hourglass className="h-4 w-4" />
+          Time Estimate
+        </Label>
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            min={0}
+            max={99}
+            value={estimateHours}
+            onChange={(e) => setEstimateHours(e.target.value)}
+            placeholder="0"
+            className="w-20 text-center"
+          />
+          <span className="text-sm text-muted-foreground">h</span>
+          <Input
+            type="number"
+            min={0}
+            max={59}
+            value={estimateMinutes}
+            onChange={(e) => setEstimateMinutes(e.target.value)}
+            placeholder="0"
+            className="w-20 text-center"
+          />
+          <span className="text-sm text-muted-foreground">m</span>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {([
+            ["15m", 0, 15],
+            ["30m", 0, 30],
+            ["1h", 1, 0],
+            ["2h", 2, 0],
+            ["4h", 4, 0],
+          ] as [string, number, number][]).map(([label, h, m]) => (
+            <Button
+              key={label}
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => {
+                setEstimateHours(h > 0 ? String(h) : "");
+                setEstimateMinutes(m > 0 ? String(m) : "");
+              }}
+            >
+              {label}
+            </Button>
+          ))}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs text-muted-foreground"
+            onClick={() => {
+              setEstimateHours("");
+              setEstimateMinutes("");
+            }}
+          >
+            Clear
+          </Button>
+        </div>
       </div>
 
-      {availableLists.length > 0 && !isSubtask && (
+      {initialData && (
         <div className="flex flex-col gap-2">
-          <Label>List</Label>
-          <Select value={selectedListId} onValueChange={(v) => {
-            setSelectedListId(v);
-            setSelectedDependency(undefined); // deps are same-list only
-            // Deselect tags that aren't available in the new list
-            const newListId = v === "__inbox__" ? undefined : v;
-            const newFilteredTags = getTagsForList(availableTags, newListId);
-            const newFilteredIds = new Set(newFilteredTags.map((t) => t.id));
-            setSelectedTags((prev) => prev.filter((id) => newFilteredIds.has(id)));
-          }}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__inbox__">Inbox</SelectItem>
-              {availableLists.map((list) => (
-                <SelectItem key={list.id} value={list.id}>
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className={cn(
-                        "inline-block h-2.5 w-2.5 rounded-full",
-                        TAG_COLORS[list.color]?.dot
-                      )}
-                    />
-                    {list.name}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label className="flex items-center gap-1.5">
+            <Timer className="h-4 w-4" />
+            Time Invested
+          </Label>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              min={0}
+              max={999}
+              value={investedHours}
+              onChange={(e) => setInvestedHours(e.target.value)}
+              placeholder="0"
+              className="w-20 text-center"
+            />
+            <span className="text-sm text-muted-foreground">h</span>
+            <Input
+              type="number"
+              min={0}
+              max={59}
+              value={investedMinutes}
+              onChange={(e) => setInvestedMinutes(e.target.value)}
+              placeholder="0"
+              className="w-20 text-center"
+            />
+            <span className="text-sm text-muted-foreground">m</span>
+          </div>
         </div>
       )}
 
@@ -267,76 +315,6 @@ export function TaskForm({
               );
             })}
           </div>
-        </div>
-      )}
-
-      {availableDependencies.length > 0 && !isSubtask && (
-        <div className="flex flex-col gap-2">
-          <Label>Depends On</Label>
-          <Popover open={depPickerOpen} onOpenChange={setDepPickerOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                aria-expanded={depPickerOpen}
-                className={cn(
-                  "w-full justify-between text-left font-normal",
-                  !selectedDependency && "text-muted-foreground"
-                )}
-              >
-                <span className="flex items-center gap-2 truncate">
-                  <Link className="h-4 w-4 shrink-0" />
-                  {selectedDependency
-                    ? availableDependencies.find((t) => t.id === selectedDependency)?.title ?? "Unknown task"
-                    : "None (no dependency)"}
-                </span>
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search tasks..." />
-                <CommandList>
-                  <CommandEmpty>No tasks found.</CommandEmpty>
-                  <CommandGroup>
-                    <CommandItem
-                      value="__none__"
-                      onSelect={() => {
-                        setSelectedDependency(undefined);
-                        setDepPickerOpen(false);
-                      }}
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          !selectedDependency ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                      None (no dependency)
-                    </CommandItem>
-                    {availableDependencies.map((dep) => (
-                      <CommandItem
-                        key={dep.id}
-                        value={dep.title}
-                        onSelect={() => {
-                          setSelectedDependency(dep.id);
-                          setDepPickerOpen(false);
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            selectedDependency === dep.id ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        <span className="truncate">{dep.title}</span>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
         </div>
       )}
 
@@ -373,6 +351,46 @@ export function TaskForm({
               type="button"
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground opacity-50 hover:opacity-100"
               onClick={() => setStartDate(undefined)}
+            >
+              <X className="size-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label>Scheduled Date</Label>
+        <div className="relative">
+          <Popover open={scheduledDateOpen} onOpenChange={setScheduledDateOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full justify-start text-left font-normal",
+                  scheduledDate && "pr-8",
+                  !scheduledDate && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {scheduledDate ? format(scheduledDate, "PPP") : "Pick a date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={scheduledDate}
+                onSelect={(date) => {
+                  setScheduledDate(date ?? undefined);
+                  setScheduledDateOpen(false);
+                }}
+              />
+            </PopoverContent>
+          </Popover>
+          {scheduledDate && (
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground opacity-50 hover:opacity-100"
+              onClick={() => setScheduledDate(undefined)}
             >
               <X className="size-4" />
             </button>
@@ -552,137 +570,121 @@ export function TaskForm({
       )}
 
       <div className="flex flex-col gap-2">
-        <Label>Scheduled Date</Label>
-        <div className="relative">
-          <Popover open={scheduledDateOpen} onOpenChange={setScheduledDateOpen}>
+        <Label>Priority</Label>
+        <Select value={priority} onValueChange={(v) => setPriority(v as Priority)}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="low">Low</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="high">High</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {availableLists.length > 0 && !isSubtask && (
+        <div className="flex flex-col gap-2">
+          <Label>List</Label>
+          <Select value={selectedListId} onValueChange={(v) => {
+            setSelectedListId(v);
+            setSelectedDependency(undefined); // deps are same-list only
+            // Deselect tags that aren't available in the new list
+            const newListId = v === "__inbox__" ? undefined : v;
+            const newFilteredTags = getTagsForList(availableTags, newListId);
+            const newFilteredIds = new Set(newFilteredTags.map((t) => t.id));
+            setSelectedTags((prev) => prev.filter((id) => newFilteredIds.has(id)));
+          }}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__inbox__">Inbox</SelectItem>
+              {availableLists.map((list) => (
+                <SelectItem key={list.id} value={list.id}>
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={cn(
+                        "inline-block h-2.5 w-2.5 rounded-full",
+                        TAG_COLORS[list.color]?.dot
+                      )}
+                    />
+                    {list.name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {availableDependencies.length > 0 && !isSubtask && (
+        <div className="flex flex-col gap-2">
+          <Label>Depends On</Label>
+          <Popover open={depPickerOpen} onOpenChange={setDepPickerOpen}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
+                role="combobox"
+                aria-expanded={depPickerOpen}
                 className={cn(
-                  "w-full justify-start text-left font-normal",
-                  scheduledDate && "pr-8",
-                  !scheduledDate && "text-muted-foreground"
+                  "w-full justify-between text-left font-normal",
+                  !selectedDependency && "text-muted-foreground"
                 )}
               >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {scheduledDate ? format(scheduledDate, "PPP") : "Pick a date"}
+                <span className="flex items-center gap-2 truncate">
+                  <Link className="h-4 w-4 shrink-0" />
+                  {selectedDependency
+                    ? availableDependencies.find((t) => t.id === selectedDependency)?.title ?? "Unknown task"
+                    : "None (no dependency)"}
+                </span>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={scheduledDate}
-                onSelect={(date) => {
-                  setScheduledDate(date ?? undefined);
-                  setScheduledDateOpen(false);
-                }}
-              />
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Search tasks..." />
+                <CommandList>
+                  <CommandEmpty>No tasks found.</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem
+                      value="__none__"
+                      onSelect={() => {
+                        setSelectedDependency(undefined);
+                        setDepPickerOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          !selectedDependency ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      None (no dependency)
+                    </CommandItem>
+                    {availableDependencies.map((dep) => (
+                      <CommandItem
+                        key={dep.id}
+                        value={dep.title}
+                        onSelect={() => {
+                          setSelectedDependency(dep.id);
+                          setDepPickerOpen(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            selectedDependency === dep.id ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        <span className="truncate">{dep.title}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
             </PopoverContent>
           </Popover>
-          {scheduledDate && (
-            <button
-              type="button"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground opacity-50 hover:opacity-100"
-              onClick={() => setScheduledDate(undefined)}
-            >
-              <X className="size-4" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label className="flex items-center gap-1.5">
-          <Hourglass className="h-4 w-4" />
-          Time Estimate
-        </Label>
-        <div className="flex items-center gap-2">
-          <Input
-            type="number"
-            min={0}
-            max={99}
-            value={estimateHours}
-            onChange={(e) => setEstimateHours(e.target.value)}
-            placeholder="0"
-            className="w-20 text-center"
-          />
-          <span className="text-sm text-muted-foreground">h</span>
-          <Input
-            type="number"
-            min={0}
-            max={59}
-            value={estimateMinutes}
-            onChange={(e) => setEstimateMinutes(e.target.value)}
-            placeholder="0"
-            className="w-20 text-center"
-          />
-          <span className="text-sm text-muted-foreground">m</span>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {([
-            ["15m", 0, 15],
-            ["30m", 0, 30],
-            ["1h", 1, 0],
-            ["2h", 2, 0],
-            ["4h", 4, 0],
-          ] as [string, number, number][]).map(([label, h, m]) => (
-            <Button
-              key={label}
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => {
-                setEstimateHours(h > 0 ? String(h) : "");
-                setEstimateMinutes(m > 0 ? String(m) : "");
-              }}
-            >
-              {label}
-            </Button>
-          ))}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs text-muted-foreground"
-            onClick={() => {
-              setEstimateHours("");
-              setEstimateMinutes("");
-            }}
-          >
-            Clear
-          </Button>
-        </div>
-      </div>
-
-      {initialData && (
-        <div className="flex flex-col gap-2">
-          <Label className="flex items-center gap-1.5">
-            <Timer className="h-4 w-4" />
-            Time Invested
-          </Label>
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              min={0}
-              max={999}
-              value={investedHours}
-              onChange={(e) => setInvestedHours(e.target.value)}
-              placeholder="0"
-              className="w-20 text-center"
-            />
-            <span className="text-sm text-muted-foreground">h</span>
-            <Input
-              type="number"
-              min={0}
-              max={59}
-              value={investedMinutes}
-              onChange={(e) => setInvestedMinutes(e.target.value)}
-              placeholder="0"
-              className="w-20 text-center"
-            />
-            <span className="text-sm text-muted-foreground">m</span>
-          </div>
         </div>
       )}
 

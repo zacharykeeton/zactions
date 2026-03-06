@@ -709,6 +709,7 @@ export default function Home() {
                   availableLists={lists}
                   availableDependencies={availableDependencies}
                   defaultListId={effectiveDefaultListId}
+                  defaultScheduledDate={!editingTask && !duplicateSource && activeTab === "today" ? startOfDay(new Date()).toISOString() : !editingTask && !duplicateSource && activeTab === "tomorrow" ? startOfDay(addDays(new Date(), 1)).toISOString() : undefined}
                   onSubmit={handleFormSubmit}
                   onCancel={() => setDialogOpen(false)}
                 />
