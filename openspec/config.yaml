@@ -1,0 +1,27 @@
+schema: spec-driven
+
+context: |
+  Recursive to-do app built with Next.js 16 (App Router), React 19, TypeScript 5 (strict), Tailwind CSS v4, shadcn/ui (new-york style).
+  DnD: @dnd-kit with flat-list pattern — flattenTree → single SortableContext → buildTree. Never nest SortableContexts.
+  State: Four React hooks (useTaskStore, useTagStore, useListStore, useCompactMode) with localStorage persistence. SSR-hydrated stores load in useEffect (not lazy initializers) to avoid hydration mismatches.
+  Data: Recursive Task tree with infinite nesting. All dates are YYYY-MM-DD strings with UTC midnight arithmetic. Tasks stored in localStorage ("recursive-todo-tasks").
+  Tree mutations: Always recursive map(), never mutate in place.
+  Testing: Vitest (globals, node env). Tests co-located with source (lib/*.test.ts).
+  Styling: OKLCH design tokens, dark mode via next-themes, cn() utility (clsx + tailwind-merge).
+  Conventions: "use client" for interactive components, @/ path aliases, lucide-react icons, heavy logic extracted to *-utils.ts files.
+  Key directories: app/, components/, hooks/, lib/
+  Views: Inbox/lists (task tree), Today/Tomorrow (3-section filtered views), Timeline (Gantt month grid), Archived, Tags.
+
+rules:
+  tasks:
+    - Include test tasks when changing logic in lib/ utility files
+    - Reference existing hooks and utility functions rather than creating new abstractions
+    - Use the tree update pattern (recursive map) for any task mutations
+    - Use shadcn/ui components from components/ui/ for all new UI elements
+  design:
+    - Respect the flat-list DnD pattern — never nest SortableContexts
+    - Use localStorage persistence pattern from existing hooks (useEffect + skipInitialMount ref)
+    - Date handling must use UTC midnights (dateStr + "T00:00:00Z") to avoid timezone drift
+    - Use shadcn/ui components (components/ui/) whenever possible — avoid custom UI primitives
+  specs:
+    - Use YYYY-MM-DD format when referencing dates in specifications
