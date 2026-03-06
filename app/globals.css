@@ -124,3 +124,18 @@
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes search-highlight {
+  0% { background-color: oklch(0.8 0.15 250); }
+  100% { background-color: transparent; }
+}
+:is(.dark *) .animate-search-highlight {
+  animation: search-highlight-dark 2s ease-out;
+}
+.animate-search-highlight {
+  animation: search-highlight 2s ease-out;
+}
+@keyframes search-highlight-dark {
+  0% { background-color: oklch(0.35 0.12 250); }
+  100% { background-color: transparent; }
+}

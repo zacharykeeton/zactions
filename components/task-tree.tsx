@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import {
   useDndMonitor,
   type DragEndEvent,
@@ -24,6 +24,7 @@ import {
 import { INDENTATION_WIDTH, COLLAPSED_TASKS_KEY } from "@/lib/constants";
 import { isSidebarDroppableId } from "@/lib/dnd-utils";
 import { getBlockingTask } from "@/lib/dependency-utils";
+import { findAncestorIds } from "@/lib/search-utils";
 import { TaskItem } from "./task-item";
 
 const RECURRING_SECTION_KEY = "task-section-recurring-open";
@@ -102,6 +103,8 @@ interface TaskTreeProps {
   activeId: UniqueIdentifier | null;
   overId: UniqueIdentifier | null;
   offsetLeft: number;
+  focusTaskId?: string | null;
+  onFocusHandled?: () => void;
 }
 
 export function TaskTree({
@@ -124,6 +127,8 @@ export function TaskTree({
   activeId,
   overId,
   offsetLeft,
+  focusTaskId,
+  onFocusHandled,
 }: TaskTreeProps) {
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => {
     if (typeof window === "undefined") return new Set();
@@ -147,6 +152,57 @@ export function TaskTree({
       return next;
     });
   }
+
+  // Focus task: expand ancestors, open section, scroll & highlight
+  const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!focusTaskId) return;
+
+    // Expand all collapsed ancestors
+    const ancestors = findAncestorIds(tasks, focusTaskId);
+    setCollapsedIds((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      for (const id of ancestors) {
+        if (next.has(id)) {
+          next.delete(id);
+          changed = true;
+        }
+      }
+      if (changed) {
+        localStorage.setItem(COLLAPSED_TASKS_KEY, JSON.stringify([...next]));
+      }
+      return changed ? next : prev;
+    });
+
+    // Open the correct section for the target task
+    const target = findItemDeep(tasks, focusTaskId);
+    if (target) {
+      if (target.recurrence) {
+        setRecurringOpen(true);
+        localStorage.setItem(RECURRING_SECTION_KEY, "true");
+      } else if (hasAnyDateInTree(target)) {
+        setScheduledOpen(true);
+        localStorage.setItem(NON_RECURRING_SECTION_KEY, "true");
+      } else {
+        setUnscheduledOpen(true);
+        localStorage.setItem(UNSCHEDULED_SECTION_KEY, "true");
+      }
+    }
+
+    // Scroll & highlight after DOM update
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`task-${focusTaskId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        setHighlightedTaskId(focusTaskId);
+        setTimeout(() => setHighlightedTaskId(null), 2000);
+      }
+    });
+
+    onFocusHandled?.();
+  }, [focusTaskId]);
 
   const [recurringOpen, setRecurringOpen] = useState(() => readSectionState(RECURRING_SECTION_KEY));
   const [scheduledOpen, setScheduledOpen] = useState(() => readSectionState(NON_RECURRING_SECTION_KEY));
@@ -332,6 +388,7 @@ export function TaskTree({
         onToggleCollapse={toggleCollapsed}
         tagMap={tagMap}
         blockingTaskTitle={blockingTask?.title}
+        isHighlighted={task.id === highlightedTaskId}
       />
     );
   }

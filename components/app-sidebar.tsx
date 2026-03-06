@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Inbox,
   List,
@@ -12,6 +12,8 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
+  Search,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Task, TaskList, Tag, TagColor } from "@/lib/types";
@@ -56,6 +58,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ListForm } from "@/components/list-form";
 
 // "all" = show all lists combined, "inbox" = no listId, string = specific list id
@@ -79,6 +82,9 @@ interface AppSidebarProps {
   onRestoreTasks: (snapshot: Task[]) => void;
   onRestoreLists: (snapshot: TaskList[]) => void;
   onRestoreTags: (snapshot: Tag[]) => void;
+  // Search
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
 }
 
 export function AppSidebar({
@@ -98,12 +104,27 @@ export function AppSidebar({
   onRestoreTasks,
   onRestoreLists,
   onRestoreTags,
+  searchQuery,
+  onSearchChange,
 }: AppSidebarProps) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingList, setEditingList] = useState<TaskList | null>(null);
   const [importConfirmOpen, setImportConfirmOpen] = useState(false);
   const [pendingImport, setPendingImport] = useState<Awaited<ReturnType<typeof parseBackupFile>> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Ctrl+K / Cmd+K keyboard shortcut
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const totalCount = Object.values(taskCounts).reduce((sum, n) => sum + n, 0);
 
@@ -167,6 +188,24 @@ export function AppSidebar({
     <>
       <Sidebar>
         <SidebarHeader>
+          <div className="relative px-2 pt-2">
+            <Search className="absolute left-4 top-1/2 mt-1 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              ref={searchInputRef}
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search tasks..."
+              className="pl-8 pr-8 h-8"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => onSearchChange("")}
+                className="absolute right-4 top-1/2 mt-1 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton

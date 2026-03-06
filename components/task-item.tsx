@@ -33,6 +33,7 @@ interface TaskItemProps {
   onToggleCollapse?: (id: string) => void;
   tagMap?: Record<string, Tag>;
   blockingTaskTitle?: string;
+  isHighlighted?: boolean;
 }
 
 export function TaskItem({
@@ -56,6 +57,7 @@ export function TaskItem({
   onToggleCollapse,
   tagMap,
   blockingTaskTitle,
+  isHighlighted,
 }: TaskItemProps) {
   const {
     attributes,
@@ -108,6 +110,7 @@ export function TaskItem({
 
   return (
     <div
+      id={`task-${task.id}`}
       ref={setNodeRef}
       style={style}
       className={cn(
@@ -117,7 +120,8 @@ export function TaskItem({
         !isDragging && (hasFutureStartDate || isDependencyBlocked) && "opacity-40",
         task.completed && "opacity-60",
         shouldShowTodayBackground && "bg-emerald-100 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/40",
-        shouldShowOverdueBackground && "bg-red-100 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/40"
+        shouldShowOverdueBackground && "bg-red-100 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/40",
+        isHighlighted && "animate-search-highlight"
       )}
       {...attributes}
     >

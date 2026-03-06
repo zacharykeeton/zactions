@@ -38,6 +38,8 @@ import { TagManager } from "@/components/tag-manager";
 import { ModeToggle } from "@/components/mode-toggle";
 import { CompactModeSettings } from "@/components/compact-mode-settings";
 import { AppSidebar, type ActiveListFilter } from "@/components/app-sidebar";
+import { SearchResults } from "@/components/search-results";
+import type { SearchResult } from "@/lib/search-utils";
 import {
   Dialog,
   DialogContent,
@@ -163,6 +165,41 @@ export default function Home() {
   const [sidebarView, setSidebarView] = useState<SidebarView>("tasks");
   const [activeTab, setActiveTab] = useState("all");
   const [timelineFullMonth, setTimelineFullMonth] = useState(false);
+  const [searchInputValue, setSearchInputValue] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchInputValue(value);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (!value.trim()) {
+      setSearchQuery("");
+    } else {
+      searchDebounceRef.current = setTimeout(() => {
+        setSearchQuery(value);
+      }, 300);
+    }
+  }, []);
+
+  const handleNavigateToTask = useCallback((result: SearchResult) => {
+    const listId = result.listId;
+    if (listId) {
+      setActiveFilter(listId);
+    } else {
+      setActiveFilter("inbox");
+    }
+    setSidebarView("tasks");
+    setActiveTab("all");
+    setSearchInputValue("");
+    setSearchQuery("");
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    setFocusTaskId(result.task.id);
+  }, []);
+
+  const handleFocusHandled = useCallback(() => {
+    setFocusTaskId(null);
+  }, []);
 
   function handleFilterChange(filter: ActiveListFilter) {
     setActiveFilter(filter);
@@ -411,13 +448,14 @@ export default function Home() {
 
   // Determine the heading based on the active filter
   const heading = useMemo(() => {
+    if (searchQuery.trim()) return "Search";
     if (sidebarView === "archived") return "Archived";
     if (sidebarView === "tags") return "Tags";
     if (activeFilter === "all") return "All Tasks";
     if (activeFilter === "inbox") return "Inbox";
     const list = lists.find((l) => l.id === activeFilter);
     return list?.name ?? "Tasks";
-  }, [activeFilter, lists, sidebarView]);
+  }, [activeFilter, lists, sidebarView, searchQuery]);
 
   // --- DnD state (lifted to page level) ---
   const [dndActiveId, setDndActiveId] = useState<UniqueIdentifier | null>(null);
@@ -522,6 +560,8 @@ export default function Home() {
           onRestoreTasks={restoreTasks}
           onRestoreLists={restoreLists}
           onRestoreTags={restoreTags}
+          searchQuery={searchInputValue}
+          onSearchChange={handleSearchChange}
         />
         <SidebarInset>
         <div className="min-h-screen bg-background">
@@ -544,7 +584,14 @@ export default function Home() {
               </div>
             </header>
 
-            {sidebarView === "archived" ? (
+            {searchQuery.trim() ? (
+              <SearchResults
+                tasks={activeTasks}
+                lists={lists}
+                query={searchQuery}
+                onNavigateToTask={handleNavigateToTask}
+              />
+            ) : sidebarView === "archived" ? (
               <ArchivedList
                 tasks={tasks}
                 onUnarchive={unarchiveTask}
@@ -615,6 +662,8 @@ export default function Home() {
                       activeId={dndActiveId}
                       overId={dndOverId}
                       offsetLeft={dndOffsetLeft}
+                      focusTaskId={focusTaskId}
+                      onFocusHandled={handleFocusHandled}
                     />
                   )}
                 </TabsContent>
