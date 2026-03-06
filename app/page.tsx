@@ -689,7 +689,7 @@ export default function Home() {
               setDialogOpen(open);
               if (!open) setDuplicateSource(null);
             }}>
-              <DialogContent>
+              <DialogContent className="flex flex-col max-h-[90vh] overflow-hidden">
                 <DialogHeader>
                   <DialogTitle>
                     {editingTask
@@ -701,6 +701,7 @@ export default function Home() {
                           : "New Task"}
                   </DialogTitle>
                 </DialogHeader>
+                <div className="overflow-y-auto flex-1 min-h-0">
                 <TaskForm
                   key={editingTask?.id ?? (duplicateSource ? `dup-${duplicateSource.id}` : null) ?? parentIdForNew ?? "new"}
                   initialData={editingTask ?? duplicateSource ?? undefined}
@@ -713,6 +714,7 @@ export default function Home() {
                   onSubmit={handleFormSubmit}
                   onCancel={() => setDialogOpen(false)}
                 />
+                </div>
               </DialogContent>
             </Dialog>
           </div>
