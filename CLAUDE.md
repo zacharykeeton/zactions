@@ -45,14 +45,15 @@ app/
   globals.css         — Tailwind v4 config, OKLCH design tokens, dark mode
 hooks/
   use-task-store.ts   — Task CRUD + localStorage persistence
-  use-tag-store.ts    — Tag definitions CRUD + localStorage
+  use-tag-store.ts    — Tag definitions CRUD + localStorage (tags support list scoping)
   use-list-store.ts   — Task list CRUD + localStorage
+  use-compact-mode.tsx — CompactModeProvider context + useCompactMode() hook
   use-timer.ts        — Time-tracking timer hook
   use-today-sort-order.ts — Sort order for Today/Tomorrow lists (localStorage)
   use-mobile.ts       — Mobile breakpoint detection
-  use-timeline-state.ts — Timeline view state (date range, zoom)
-  use-timeline-drag.ts  — Timeline-specific drag logic
-  use-grid-day-width.ts — Responsive day-column width calculation
+  use-timeline-state.ts — Timeline month navigation state (localStorage-persisted)
+  use-timeline-drag.ts  — Timeline-specific drag logic (bar + endpoint dragging)
+  use-grid-day-width.ts — Responsive day-column width via ResizeObserver
 components/
   ui/                 — shadcn/ui components (badge, button, calendar, checkbox, command, dialog, dropdown-menu, input, label, popover, progress, select, separator, sheet, sidebar, skeleton, sonner, tabs, tooltip)
   app-sidebar.tsx     — Sidebar nav: list switching, archived/tags views
@@ -63,7 +64,8 @@ components/
   task-tree.tsx       — DndContext + SortableContext wrapper (DnD orchestrator)
   task-item.tsx       — Sortable task row + TaskItemOverlay for drag preview
   task-row-content.tsx — Shared task row rendering (used by task-item + today-task-item)
-  task-form.tsx       — Add/Edit task dialog (title, priority, due/scheduled date, tags, list)
+  compact-mode-settings.tsx — Granular compact mode toggle settings popover
+  task-form.tsx       — Add/Edit task dialog (title, priority, dates, tags, list, dependencies, time estimate)
   today-list.tsx      — "Today" view: filters tasks scheduled/due today
   today-task-item.tsx — Task item variant for the Today list
   timeline-view.tsx   — Timeline (Gantt-style) view: renders tasks on a date grid
@@ -74,8 +76,10 @@ components/
   timeline-task-group.tsx   — Grouped task rows in the timeline
   archived-list.tsx   — Archived tasks view
 lib/
-  types.ts            — Task, FlattenedTask, Tag, TaskList, BackupData types
-  constants.ts        — All constants: INDENTATION_WIDTH, storage keys, TAG_COLORS, priorityColors, sidebar DnD IDs
+  types.ts            — Task, FlattenedTask, Tag, TaskList, BackupData, CompletionRecord, CompactModeSettings types
+  constants.ts        — All constants: INDENTATION_WIDTH, storage keys, TAG_COLORS, priorityColors, sidebar DnD IDs, timeline layout constants
+  ics-utils.ts        — RFC 5545 iCalendar (.ics) file generation and download
+  ics-utils.test.ts   — Unit tests for ICS utils
   tree-utils.ts       — Tree algorithms (flatten, build, projection, find, remove, etc.)
   tree-utils.test.ts  — Unit tests for tree utils
   utils.ts            — cn() utility (clsx + tailwind-merge)
@@ -125,13 +129,31 @@ interface Task {
   dependsOn?: string[];          // IDs of tasks this task depends on
 }
 
-// Also in types.ts:
-// Tag: { id, name, color: TagColor }
+// CompletionRecord — tracks individual completions for recurring tasks/subtasks
+interface CompletionRecord {
+  scheduledDate: string | null;
+  dueDate: string | null;
+  completedAt: string;           // ISO date
+  timeInvestedMs: number;
+}
+
+// Tag: { id, name, color: TagColor, listIds: string[] }
+//   listIds=[] means global (all lists); otherwise scoped to specific lists
 // TaskList: { id, name, color: TagColor, createdDate }
+// CompactModeSettings: 11 boolean toggles (showPriority, showTags, showDueDate, etc.)
 // BackupData: { version, exportedAt, tasks, lists, tags, preferences? }
 ```
 
-Tasks in localStorage: `"recursive-todo-tasks"`. Tags: `"recursive-todo-tags"`. Lists: `"recursive-todo-lists"`.
+**localStorage keys** (all in `constants.ts`):
+- `"recursive-todo-tasks"` — tasks
+- `"recursive-todo-tags"` — tags
+- `"recursive-todo-lists"` — lists
+- `"compact-mode-enabled"` / `"compact-mode-settings"` — compact mode
+- `"today-sort-order"` — Today/Tomorrow custom sort
+- `"timeline-month"` — timeline current month
+- `"timeline-label-width"` — resizable label column width
+- `"today-section-*"` / `"tomorrow-section-*"` — collapsible section states
+- `"collapsed-tasks"` — collapsed task IDs (shared across views)
 
 ### Drag-and-Drop Architecture (@dnd-kit)
 
@@ -159,22 +181,82 @@ The app uses a **flat-list pattern** for tree DnD — the canonical nested `Task
 
 The sidebar (`AppSidebar`) controls what is shown in the main content area:
 - **Inbox / named lists** — filters tasks by `listId`; drag a task onto a sidebar list item to reassign it
-- **Today** — tasks scheduled/due today (with recurring and non-recurring sections)
-- **Tomorrow** — tasks scheduled/due tomorrow (same section structure as Today)
+- **Today** — three-section view (recurring, scheduled, optional) with parent-child hierarchy
+- **Tomorrow** — same three-section structure as Today
+- **Timeline** — Gantt-style month view with drag-to-reschedule
 - **Archived** — soft-deleted tasks
 - **Tags** — tag management (`TagManager` component)
 
 `SidebarView` state in `page.tsx`: `"tasks" | "archived" | "tags"`
 `ActiveListFilter` (from `app-sidebar.tsx`): `"all" | "inbox" | string` (string = specific list ID)
 
+### Today/Tomorrow View Architecture
+
+The Today/Tomorrow views (`today-list.tsx`) use a three-section hierarchy-preserving filter system:
+
+1. **Recurring section** — `getRecurringTasksForTodayWithChildren()` returns recurring tasks with full child trees, plus `excludeIds: Set<string>` to prevent duplication
+2. **Scheduled section** — `getTasksForTodayWithChildren(tasks, today, excludeIds)` returns non-recurring tasks due/scheduled today, excluding anything claimed by recurring section
+3. **Optional section** — `getOptionalTasksForTodayWithChildren()` returns tasks that are available (`startDate <= today`) but not explicitly due/scheduled today
+
+**Key patterns:**
+- `claimedIds` / `excludeIds` sets prevent a task from appearing in multiple sections
+- `filterCollapsed()` removes descendants of collapsed tasks from the render list
+- `sortTodayTasks(tasks, sortOrder)` applies user-dragged sort order, with new tasks appearing at the bottom sorted by priority
+- Progress tracking via `getTodayProgress()` — counts completed vs total using `wasCompletedForToday()` which is recurrence-aware
+- Section collapse states persisted to localStorage (`today-section-*` keys)
+
+### Timeline View Architecture
+
+The timeline (`timeline-view.tsx` + `timeline-grid.tsx`) renders tasks on a month-based Gantt grid:
+- **Navigation:** `useTimelineState()` manages current month (localStorage-persisted)
+- **Grid:** `useGridDayWidth()` calculates pixels-per-day via ResizeObserver
+- **Drag types** (`DragType`): `"bar"` | `"start-endpoint"` | `"end-endpoint"` | `"scheduled-endpoint"`
+- **Drag hook:** `useTimelineDrag()` uses ref-based closures for document event listeners, snaps to whole-day increments
+- **Constraints:** Start can't pass end, end can't pass start; bar drag shifts all three dates together
+- **Resizable label column:** Width persisted to localStorage (`timeline-label-width`)
+- **Layout constants** (in `constants.ts`): `TIMELINE_DAY_MIN_WIDTH=32`, `TIMELINE_ROW_HEIGHT=36`, `TIMELINE_BAR_HEIGHT=20`
+
+### Task Blocking & Dependencies
+
+Tasks can depend on other tasks via `dependsOn: string[]`:
+- `getBlockingTask(tasks, task)` from `dependency-utils.ts` finds the first incomplete blocker
+- `isTaskBlocked()` checks if any dependency is unmet
+- Blocked tasks show a lock icon (orange) with tooltip, and cannot be toggled complete
+- Tasks with `startDate` in the future also show a lock icon ("Not Started")
+- `removeDependencyRef()` in `task-store-utils.ts` cascades deletion when a task is removed
+
+### Compact Mode System
+
+Compact mode uses React Context (`CompactModeProvider` in `use-compact-mode.tsx`):
+- Global toggle: `compactMode: boolean`
+- Granular settings: `CompactModeSettings` with 11 boolean flags (showPriority, showTags, showDueDate, etc.)
+- Components use: `const { compactMode, settings } = useCompactMode(); const show = (key) => !compactMode || settings[key];`
+- Settings merge with defaults on load for forward compatibility when new fields are added
+
+### Recurring Task Lifecycle
+
+When a recurring task is toggled complete:
+1. Task is immediately reset to `completed: false`
+2. Due date advances to next occurrence via `getNextDueDate()`
+3. Children's dates shift by the same delta via `shiftDatesDeep()`
+4. Completion recorded in `completionHistory` as `CompletionRecord`
+5. Children reset to incomplete via `resetChildrenDeep()` (with fallback records to preserve first-cycle data)
+
+**Skip logic** (`skipTodayTask`): For recurring tasks, skips to the next valid recurrence date (not just tomorrow). E.g., a weekday-only task on Friday skips to Monday.
+
+**Fast-forward** (`fastForwardTask`): Advances a past-due recurring task's date to today or the nearest valid future occurrence.
+
 ### State Management
 
-State is split across three hooks in `hooks/`:
+State is split across four hooks in `hooks/`:
 - `useTaskStore` ([hooks/use-task-store.ts](hooks/use-task-store.ts)) — Task CRUD + localStorage; functions: `addTask`, `updateTask`, `deleteTask`, `toggleTask`, `reorderTasks`, `restoreTasks`, `archiveTask`, `unarchiveTask`, `fastForwardTask`, `skipTodayTask`
-- `useTagStore` ([hooks/use-tag-store.ts](hooks/use-tag-store.ts)) — Tag definitions CRUD; functions: `addTag`, `updateTag`, `deleteTag`, `restoreTags`
+- `useTagStore` ([hooks/use-tag-store.ts](hooks/use-tag-store.ts)) — Tag definitions CRUD; functions: `addTag`, `updateTag`, `deleteTag`, `removeListFromTags`, `restoreTags`
 - `useListStore` ([hooks/use-list-store.ts](hooks/use-list-store.ts)) — Task list CRUD; functions: `addList`, `updateList`, `deleteList`, `restoreLists`
+- `useCompactMode` ([hooks/use-compact-mode.tsx](hooks/use-compact-mode.tsx)) — Context-based global compact mode state; provides `compactMode` toggle + granular `CompactModeSettings`
 
-All hooks use `useState<T[]>` with lazy initializers + `useEffect` for localStorage persistence (skips initial mount via ref). Deep immutable tree updates via recursive `map()`.
+**Hydration pattern:** All hooks use a `useRef(true)` flag to skip localStorage persistence on initial mount. The task store specifically loads via `useEffect` (not lazy initializer) because lazy initializers cause SSR hydration mismatches (server returns `[]`, client would return stored data). Deep immutable tree updates via recursive `map()`.
+
+**Task migration:** On load, `migrateTask()` from `task-store-utils.ts` upgrades legacy data (e.g., `completionHistory: string[]` → `CompletionRecord[]`, backfills missing fields like `startDate`, `timeInvestedMs`).
 
 ### Styling System
 - **Tailwind CSS v4** (PostCSS plugin-based, no traditional config file)
@@ -196,15 +278,32 @@ All hooks use `useState<T[]>` with lazy initializers + `useEffect` for localStor
 - Icons from `lucide-react`
 - Action buttons revealed on hover: `opacity-0 group-hover:opacity-100`
 - Priority colors defined as a map: low=emerald, medium=amber, high=red
+- Compact mode checks: `const show = (key) => !compactMode || settings[key]` before rendering optional badges
 
-### ESLint: Prefer Lazy Initializers over setState in Effects
-The `react-hooks/set-state-in-effect` rule is inherited from `eslint-config-next`. Prefer lazy initializers for `useState` over calling `setState` in `useEffect` bodies:
+### Date Handling
+- All dates stored as `YYYY-MM-DD` strings (ISO date part only, no time component)
+- All date arithmetic uses UTC midnights: `new Date(dateStr + "T00:00:00Z")` to avoid timezone drift
+- `daysBetweenDates()`, `shiftDate()`, `shiftDatesDeep()` in `task-store-utils.ts` for date math
+- `formatUTCDate(date)` for Date → `YYYY-MM-DD` conversion (avoids `toISOString()` which includes time)
+
+### ESLint: Lazy Initializers vs Hydration
+The `react-hooks/set-state-in-effect` rule prefers lazy initializers. However, for SSR-hydrated stores (task/tag/list stores), loading happens in `useEffect` to avoid hydration mismatches (server returns `[]`, lazy initializer would return stored data). Use lazy initializers for non-SSR state (compact mode settings, sort orders, etc.).
+
+### Utility Extraction Pattern
+Heavy logic is extracted from hooks into `*-utils.ts` files (e.g., `task-store-utils.ts` handles migration, date shifting, archival cascading, merge after reorder). Keep hooks focused on state + callbacks; put algorithms in utils.
+
+### Tree Update Pattern
+All tree mutations use recursive `map()` — never mutate in place. When updating a task deep in the tree:
 ```typescript
-// Do this:
-const [data, setData] = useState<T[]>(() => loadFromStorage());
-// Not this:
-useEffect(() => { setData(loadFromStorage()); }, []);
+const updateDeep = (items: Task[]): Task[] =>
+  items.map(item => item.id === id
+    ? { ...item, ...updates }
+    : { ...item, children: updateDeep(item.children) }
+  );
 ```
+
+### Filtered View Reordering
+When reordering tasks in a filtered view (Today/Tomorrow), `mergeReorderedTasks()` reconstructs the full tree by collecting archived tasks and other-list tasks from the original, then reinserting them at their original positions. This prevents data loss when the user only sees a subset.
 
 ### Import Paths
 - Use `@/` prefix for absolute imports (e.g., `import { cn } from "@/lib/utils"`)
