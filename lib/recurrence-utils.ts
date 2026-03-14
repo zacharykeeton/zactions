@@ -4,7 +4,6 @@ import {
   addMonths,
   addYears,
   isBefore,
-  startOfDay,
   differenceInCalendarDays,
   differenceInCalendarWeeks,
 } from "date-fns";
@@ -23,7 +22,9 @@ export function getNextDueDate(
   pattern: RecurrencePattern
 ): string {
   const dueDate = new Date(currentDueDate);
-  const today = startOfDay(new Date());
+  // Use local "today" as a UTC midnight date (consistent with how due dates are stored)
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
   const freq = pattern.frequency ?? 1;
 
   switch (pattern.interval) {
@@ -43,10 +44,9 @@ export function fastForwardDueDate(
   pattern: RecurrencePattern
 ): string {
   const dueDate = new Date(currentDueDate);
+  // Use local "today" (consistent with date-fns isPast/isToday used in the UI)
   const now = new Date();
-
-  // Create a "today" date using UTC to avoid timezone issues
-  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
 
   // Compare dates using UTC
   const dueDateUTC = Date.UTC(dueDate.getUTCFullYear(), dueDate.getUTCMonth(), dueDate.getUTCDate());
@@ -59,16 +59,31 @@ export function fastForwardDueDate(
 
   const freq = pattern.frequency ?? 1;
 
+  let result: Date;
   switch (pattern.interval) {
     case "daily":
-      return formatUTCDate(fastForwardDaily(dueDate, today, freq));
+      result = fastForwardDaily(dueDate, today, freq);
+      break;
     case "weekly":
-      return formatUTCDate(fastForwardWeekly(dueDate, today, pattern.daysOfWeek, freq));
+      result = fastForwardWeekly(dueDate, today, pattern.daysOfWeek, freq);
+      break;
     case "monthly":
-      return formatUTCDate(fastForwardMonthly(dueDate, today, freq));
+      result = fastForwardMonthly(dueDate, today, freq);
+      break;
     case "yearly":
-      return formatUTCDate(fastForwardYearly(dueDate, today, freq));
+      result = fastForwardYearly(dueDate, today, freq);
+      break;
   }
+
+  // The helpers find the most recent valid occurrence <= today. If that's still
+  // before today (e.g. weekly with specific days where today isn't a scheduled
+  // day, or frequency > 1), advance to the first valid occurrence >= today.
+  const resultUTC = Date.UTC(result.getUTCFullYear(), result.getUTCMonth(), result.getUTCDate());
+  if (resultUTC < todayUTC) {
+    return getNextDueDate(formatUTCDate(result), pattern);
+  }
+
+  return formatUTCDate(result);
 }
 
 function getNextDaily(dueDate: Date, today: Date, frequency: number): Date {
