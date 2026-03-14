@@ -166,7 +166,7 @@ export function TaskRowContent({
 
       <button
         className={cn(
-          "min-w-0 flex-1 truncate text-sm text-left hover:underline cursor-pointer",
+          "min-w-0 flex-1 text-sm text-left hover:underline cursor-pointer break-words",
           task.completed && "line-through text-muted-foreground"
         )}
         onClick={() => onEdit(task)}
@@ -174,7 +174,7 @@ export function TaskRowContent({
         {task.title}
       </button>
 
-      <div className="flex shrink-0 items-center gap-1.5">
+      <div className="flex shrink-0 flex-wrap items-center gap-1.5">
         {show("showStatus") && isLocked && (
           <Badge
             variant="outline"
@@ -337,7 +337,7 @@ export function TaskRowContent({
           </Button>
         )}
 
-        <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="hidden items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 md:flex">
           {showFastForward && (
             <Button
               variant="ghost"

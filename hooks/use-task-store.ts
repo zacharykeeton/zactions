@@ -8,6 +8,7 @@ import { isTaskBlocked } from "@/lib/dependency-utils";
 import { getNextDueDate, fastForwardDueDate } from "@/lib/recurrence-utils";
 import { LOCAL_STORAGE_KEY } from "@/lib/constants";
 import { migrateTask, removeDependencyRef, resetChildrenDeep, mergeReorderedTasks, setArchivedOnTask, daysBetweenDates, shiftDatesDeep } from "@/lib/task-store-utils";
+import { syncService } from "@/lib/sync-service";
 
 export function useTaskStore() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -91,6 +92,8 @@ export function useTaskStore() {
           return addToParent(prev);
         });
       }
+
+      syncService.enqueueTaskUpsert([newTask]);
     },
     []
   );
@@ -116,7 +119,11 @@ export function useTaskStore() {
               return { ...item, children: update(item.children) };
             return item;
           });
-        return update(prev);
+        const newTasks = update(prev);
+        // Sync the updated task
+        const updatedTask = findItemDeep(newTasks, id);
+        if (updatedTask) syncService.enqueueTaskUpsert([updatedTask]);
+        return newTasks;
       });
     },
     []
@@ -124,6 +131,7 @@ export function useTaskStore() {
 
   const deleteTask = useCallback((id: string) => {
     setTasks((prev) => removeDependencyRef(removeItem(prev, id), id));
+    syncService.enqueueTaskDelete([id]);
   }, []);
 
   const toggleTask = useCallback((id: string) => {
@@ -162,7 +170,10 @@ export function useTaskStore() {
               return { ...item, children: update(item.children) };
             return item;
           });
-        return update(prev);
+        const newTasks = update(prev);
+        const updatedTask = findItemDeep(newTasks, id);
+        if (updatedTask) syncService.enqueueTaskUpsert([updatedTask]);
+        return newTasks;
       }
 
       // Normal toggle
@@ -194,7 +205,10 @@ export function useTaskStore() {
             return { ...item, children: update(item.children) };
           return item;
         });
-      return update(prev);
+      const newTasks = update(prev);
+      const updatedTask = findItemDeep(newTasks, id);
+      if (updatedTask) syncService.enqueueTaskUpsert([updatedTask]);
+      return newTasks;
     });
   }, []);
 
@@ -203,15 +217,30 @@ export function useTaskStore() {
   }, []);
 
   const reorderTasks = useCallback((reorderedActiveTasks: Task[]) => {
-    setTasks((prev) => mergeReorderedTasks(prev, reorderedActiveTasks));
+    setTasks((prev) => {
+      const newTasks = mergeReorderedTasks(prev, reorderedActiveTasks);
+      // Sync all reordered tasks (positions/parentIds may have changed)
+      syncService.enqueueTaskUpsert(reorderedActiveTasks);
+      return newTasks;
+    });
   }, []);
 
   const archiveTask = useCallback((id: string) => {
-    setTasks((prev) => setArchivedOnTask(prev, id, true));
+    setTasks((prev) => {
+      const newTasks = setArchivedOnTask(prev, id, true);
+      const updatedTask = findItemDeep(newTasks, id);
+      if (updatedTask) syncService.enqueueTaskUpsert([updatedTask]);
+      return newTasks;
+    });
   }, []);
 
   const unarchiveTask = useCallback((id: string) => {
-    setTasks((prev) => setArchivedOnTask(prev, id, false));
+    setTasks((prev) => {
+      const newTasks = setArchivedOnTask(prev, id, false);
+      const updatedTask = findItemDeep(newTasks, id);
+      if (updatedTask) syncService.enqueueTaskUpsert([updatedTask]);
+      return newTasks;
+    });
   }, []);
 
   const fastForwardTask = useCallback((id: string) => {
@@ -237,7 +266,10 @@ export function useTaskStore() {
             return { ...item, children: update(item.children) };
           return item;
         });
-      return update(prev);
+      const newTasks = update(prev);
+      const updatedTask = findItemDeep(newTasks, id);
+      if (updatedTask) syncService.enqueueTaskUpsert([updatedTask]);
+      return newTasks;
     });
   }, []);
 
@@ -288,7 +320,10 @@ export function useTaskStore() {
             return { ...item, children: update(item.children) };
           return item;
         });
-      return update(prev);
+      const newTasks = update(prev);
+      const updatedTask = findItemDeep(newTasks, id);
+      if (updatedTask) syncService.enqueueTaskUpsert([updatedTask]);
+      return newTasks;
     });
   }, []);
 

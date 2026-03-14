@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { startOfDay, addDays } from "date-fns";
-import { ListTodo, Plus, CalendarCheck, CalendarClock, GanttChartSquare, List, LayoutList } from "lucide-react";
+import { ListTodo, Plus, CalendarCheck, CalendarClock, GanttChartSquare, List, LayoutList, Cloud, CloudOff, Loader2 } from "lucide-react";
+import { SignInButton, UserButton, useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
 import {
   DndContext,
@@ -20,6 +21,7 @@ import {
   type UniqueIdentifier,
 } from "@dnd-kit/core";
 import { preloadCompletionSound } from "@/lib/completion-sound";
+import { useSync } from "@/hooks/use-sync";
 import { useTaskStore } from "@/hooks/use-task-store";
 import { useTagStore } from "@/hooks/use-tag-store";
 import { useListStore } from "@/hooks/use-list-store";
@@ -138,6 +140,25 @@ export default function Home() {
     deleteList,
     restoreLists,
   } = useListStore();
+
+  const { isSyncing, syncError, clearError, isSignedIn } = useSync({
+    tasks,
+    tags,
+    lists,
+    restoreTasks,
+    restoreTags,
+    restoreLists,
+  });
+
+  // Show sync error toast
+  useEffect(() => {
+    if (syncError) {
+      toast.error(syncError, {
+        action: { label: "Dismiss", onClick: clearError },
+        duration: 8000,
+      });
+    }
+  }, [syncError, clearError]);
 
   const tagMap = useMemo(
     () => Object.fromEntries(tags.map((t) => [t.id, t])),
@@ -581,6 +602,35 @@ export default function Home() {
                 <CompactModeToggle />
                 <CompactModeSettings />
                 <ModeToggle />
+                {isSignedIn ? (
+                  <>
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center">
+                            {isSyncing ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            ) : syncError ? (
+                              <CloudOff className="h-4 w-4 text-destructive" />
+                            ) : (
+                              <Cloud className="h-4 w-4 text-green-500" />
+                            )}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{isSyncing ? "Syncing..." : syncError ? "Sync error" : "Synced"}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <UserButton />
+                  </>
+                ) : (
+                  <SignInButton mode="modal">
+                    <Button variant="ghost" size="icon">
+                      <Cloud className="h-4 w-4" />
+                    </Button>
+                  </SignInButton>
+                )}
               </div>
             </header>
 

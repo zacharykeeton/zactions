@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import type { TaskList, TagColor } from "@/lib/types";
 import { LISTS_STORAGE_KEY } from "@/lib/constants";
+import { syncService } from "@/lib/sync-service";
 
 export function useListStore() {
   const [lists, setLists] = useState<TaskList[]>([]);
@@ -35,20 +36,25 @@ export function useListStore() {
       createdDate: new Date().toISOString(),
     };
     setLists((prev) => [...prev, newList]);
+    syncService.enqueueListUpsert([newList]);
     return newList;
   }, []);
 
   const updateList = useCallback(
     (id: string, updates: Partial<Omit<TaskList, "id" | "createdDate">>) => {
-      setLists((prev) =>
-        prev.map((list) => (list.id === id ? { ...list, ...updates } : list))
-      );
+      setLists((prev) => {
+        const newLists = prev.map((list) => (list.id === id ? { ...list, ...updates } : list));
+        const updatedList = newLists.find((l) => l.id === id);
+        if (updatedList) syncService.enqueueListUpsert([updatedList]);
+        return newLists;
+      });
     },
     []
   );
 
   const deleteList = useCallback((id: string) => {
     setLists((prev) => prev.filter((list) => list.id !== id));
+    syncService.enqueueListDelete([id]);
   }, []);
 
   const restoreLists = useCallback((snapshot: TaskList[]) => {

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import type { Tag, TagColor } from "@/lib/types";
 import { TAGS_STORAGE_KEY } from "@/lib/constants";
+import { syncService } from "@/lib/sync-service";
 
 export function useTagStore() {
   const [tags, setTags] = useState<Tag[]>([]);
@@ -36,30 +37,40 @@ export function useTagStore() {
   const addTag = useCallback((name: string, color: TagColor, listIds: string[] = []) => {
     const newTag: Tag = { id: uuidv4(), name, color, listIds };
     setTags((prev) => [...prev, newTag]);
+    syncService.enqueueTagUpsert([newTag]);
     return newTag;
   }, []);
 
   const updateTag = useCallback(
     (id: string, updates: Partial<Omit<Tag, "id">>) => {
-      setTags((prev) =>
-        prev.map((tag) => (tag.id === id ? { ...tag, ...updates } : tag))
-      );
+      setTags((prev) => {
+        const newTags = prev.map((tag) => (tag.id === id ? { ...tag, ...updates } : tag));
+        const updatedTag = newTags.find((t) => t.id === id);
+        if (updatedTag) syncService.enqueueTagUpsert([updatedTag]);
+        return newTags;
+      });
     },
     []
   );
 
   const deleteTag = useCallback((id: string) => {
     setTags((prev) => prev.filter((tag) => tag.id !== id));
+    syncService.enqueueTagDelete([id]);
   }, []);
 
   const removeListFromTags = useCallback((listId: string) => {
-    setTags((prev) =>
-      prev.map((tag) =>
+    setTags((prev) => {
+      const newTags = prev.map((tag) =>
         tag.listIds.includes(listId)
           ? { ...tag, listIds: tag.listIds.filter((id) => id !== listId) }
           : tag
-      )
-    );
+      );
+      const changedTags = newTags.filter((tag) =>
+        prev.find((t) => t.id === tag.id)?.listIds.includes(listId)
+      );
+      if (changedTags.length > 0) syncService.enqueueTagUpsert(changedTags);
+      return newTags;
+    });
   }, []);
 
   const restoreTags = useCallback((snapshot: Tag[]) => {
