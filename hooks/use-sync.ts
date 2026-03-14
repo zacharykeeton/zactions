@@ -156,8 +156,11 @@ export function useSync({
       // Flush pending mutations first
       await syncService.flush();
 
-      // Then pull latest
-      const data = await syncService.pull();
+      // Then pull all data — must use fullPull (not incremental pull)
+      // because applyPullData replaces local state entirely.
+      // An incremental pull would return only changed tasks, causing
+      // all other tasks to be wiped from local state.
+      const data = await syncService.fullPull();
       if (data && (data.tasks.length > 0 || data.tags.length > 0 || data.lists.length > 0)) {
         applyPullData(data);
       }

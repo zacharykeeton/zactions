@@ -289,7 +289,26 @@ class SyncService {
   }
 
   async fullPull(): Promise<PullResponse | null> {
-    return this.pull(undefined);
+    if (!this.userId) return null;
+
+    // Always fetch ALL data — do not use lastPullTime.
+    // The regular pull() falls through to lastPullTime when since is undefined,
+    // which would make this an incremental pull and cause data loss when
+    // applyPullData replaces local state with only the changed subset.
+    const url = "/api/sync/pull";
+
+    try {
+      const res = await fetch(url);
+
+      if (res.status === 401) return null;
+      if (!res.ok) throw new Error(`Pull failed: ${res.status}`);
+
+      const data: PullResponse = await res.json();
+      this.setLastPullTime(data.serverTime);
+      return data;
+    } catch {
+      return null;
+    }
   }
 
   getLastPullTime(): string | null {
