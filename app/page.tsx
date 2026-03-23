@@ -385,6 +385,21 @@ export default function Home() {
     setDialogOpen(true);
   }
 
+  // --- Ctrl+N shortcut to add task ---
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "n" && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        setEditingTask(null);
+        setParentIdForNew(null);
+        setDuplicateSource(null);
+        setDialogOpen(true);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   // Default listId for new tasks: use active filter if it's a specific list
   const defaultListId = activeFilter !== "all" && activeFilter !== "inbox"
     ? activeFilter
@@ -594,10 +609,19 @@ export default function Home() {
               </div>
               <div className="flex items-center gap-2">
                 {sidebarView === "tasks" && (
-                  <Button onClick={handleAddRootTask}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Task
-                  </Button>
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button onClick={handleAddRootTask}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add Task
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Ctrl+N</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
                 <CompactModeToggle />
                 <CompactModeSettings />
